@@ -10,23 +10,37 @@ available = []
 
 def ping():
     for port in range(int(MIN_PORT), int(MAX_PORT)+1):
-        cli = paramiko.SSHClient()
-        cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+        if port % 10 > 6 or port % 10 == 0:
+            continue
 
+        cli = paramiko.SSHClient()
+        #cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+        cli.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy())
         try:
             cli.connect(JETSON_IP, port=port, username=USERNAME, password=PASSWORD)
 
-            stdin, stdout, stderr = cli.exec_command(f"ls")
+            stdin, stdout, stderr = cli.exec_command("ls")
             lines = stdout.readlines()
             
             if lines:
                 available.append(port)
+                print(f"{port} is working")
+                #print(lines)
+
             cli.close()
 
         except Exception as e:
+            print(f"{port} {e}")
             continue
+    
+    temp = [i for i in range(int(MIN_PORT), int(MAX_PORT)+1)]
+    result = []
 
-    print("NOT CONNECTED PORTS : ", set([i for i in range(int(MIN_PORT), int(MAX_PORT)+1)])-set(available))
+    for port in temp:
+        if port % 10 <= 6 and port % 10 > 0:
+            result.append(port)
+
+    print("NOT CONNECTED PORTS : ", list(set(result)-set(available)))
 
 
         
@@ -36,11 +50,23 @@ def global_exec(command):
     for port in available:
         try:
             cli = paramiko.SSHClient()
-            cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+            cli.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy())
+            #cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
             cli.connect(JETSON_IP, port=port, username=USERNAME, password=PASSWORD)
 
-            stdin, stdout, stderr = cli.exec_command(f"{command}")
+            stdin, stdout, stderr = cli.exec_command(command)
+            
+
+            stdin, stdout, stderr = stdin.readlines(), stdout.readlines(), stderr.readlines()
+            if stdin:
+                print(f"INPUT {stdin}")
+            if stdout:
+                print(f"OUTPUT {stdout}")
+            if stderr:
+                print(f"ERROR {stderr}")
+            
+
         except Exception as e:
             print(f"Port {port} error")
             continue
