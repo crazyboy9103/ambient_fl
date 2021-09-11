@@ -55,7 +55,7 @@ class Jetson:
             server = self.ip
             user = USERNAME
             pwd = PASSWORD
-            cli.connect(self.ip, port=port, username=user, password=pwd)
+            cli.connect(server, port=port, username=user, password=pwd)
             stdin, stdout, stderr = cli.exec_command(f"ls")
             
             lines = stdout.readlines()
@@ -89,10 +89,6 @@ class Jetson:
             return False
         
         return True
-    
-    
-    def start_federated_learning(self):
-        return 
 
     def test_jetson_nano(self):
         for port in self.ports:
@@ -112,11 +108,10 @@ start = time.time()
 jetson = Jetson(IP=JETSON_IP, min_port = MIN_PORT, max_port=MAX_PORT)
 
 jetson.initialize_jetson_nano(experiment=experiment, max_round=max_round, time_delay=time_delay, suppress=suppress)
-jetson.start_federated_learning()
 
 results = jetson.fetch_results()
 end = time.time()
-
+print(results) 
 print(f"Federated learning took {end-start} seconds")
 
 import numpy as np
