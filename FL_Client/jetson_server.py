@@ -1,6 +1,5 @@
 import paramiko
 import getpass
-from ping3 import ping
 import time
 
 ###### JETSON NANO ADDRESS ######
@@ -10,8 +9,8 @@ MAX_PORT = "20136"
 EXPERIMENT = 1
 MAX_ROUND = 5
 TIME_DELAY = 5
-USERNAME = "owner"
-PASSWORD = "@mbient942"
+USERNAME = "jetson"
+PASSWORD = "jetson"
 
 ###### SERVER ADDRESS ######
 SERVER_IP = "147.47.200.178:9103"
@@ -31,10 +30,6 @@ def initialize_server(client_number):
     assert reset_result.text == "Request OK" and client_result.text == "Request PUT OK", "Server Init Failed"
     print("Server reset success" if reset_result.text == "Request OK" else "Server reset failed")
     
-max_round = 3 # Any positive integer (not tested for extremely large value)
-experiment = 1 # 1,2,3,4
-time_delay = 5 # time in seconds to wait until retry (not tested for extremely large value)
-suppress = False # 모든 출력을 보고싶지 않으면 True
 initialize_server()
 
 #Instantiate the clients and create Threads to execute them
@@ -46,49 +41,68 @@ Initialize multiple Jetson Nanos and start FL
 class Jetson:
     def __init__(self, IP='147.47.200.22', min_port = "20101", max_port="20202"):
         assert int(min_port) < int(max_port), "max port must be >= min port"
-        self.addresses = [IP+f":{i}" for i in range(int(min_port), int(max_port)+1)]
-        self.available = [] #available addresses
+        self.ip = IP
+        self.ports = [port for port in range(int(min_port), int(max_port)+1)]
+        self.available = [] #available ports
         
         self.test_jetson_nano()
         
-    def __ping(self, address):
-        resp = ping(address)
-        
-        if resp == False:
+    def __ping(self, port):
+        try:
+            cli = paramiko.SSHClient()
+            cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+
+            server = self.ip
+            user = USERNAME
+            pwd = PASSWORD
+            cli.connect(self.ip, port=port, username=user, password=pwd)
+            stdin, stdout, stderr = cli.exec_command(f"ls")
+            
+            lines = stdout.readlines()
+
+            cli.close()
+
+        except Exception as e:
             return False
-        
-        return True
+
+        return True if lines else False
     
-    def __initialize(self, address, experiment, max_round, time_delay, num_samples):
+    def __initialize(self, port, experiment, max_round, time_delay, num_samples):
         # SSH 로 접속 해서 Client들 initialize 시키고 필요한 것들 하기
-        cli = paramiko.SSHClient()
-        cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+        try:
 
-        server = address  # 호스트명이나 IP 주소
-        user = USERNAME
-        pwd = PASSWORD
+            cli = paramiko.SSHClient()
+            cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
-        cli.connect(server, port=22, username=user, password=pwd)
-        stdin, stdout, stderr = cli.exec_command(f"python jetson_client.py --ip {SERVER_IP} --max {max_round} --delay {time_delay} --num {num_samples}")
+            server = self.ip  # 호스트명이나 IP 주소
+            user = USERNAME
+            pwd = PASSWORD
+
+            cli.connect(server, port=port, username=user, password=pwd)
+            stdin, stdout, stderr = cli.exec_command(f"python jetson_client.py --ip {SERVER_IP} --max {max_round} --delay {time_delay} --num {num_samples}")
         
-        lines = stdout.readlines()
-        print(''.join(lines))
-        cli.close()
+            #lines = stdout.readlines()
+                
+            cli.close()
+
+        except Exception as e:
+            return False
         
         return True
     
     
     def start_federated_learning(self):
-        
+        return 
+
     def test_jetson_nano(self):
-        for address in self.addresses:
-            temp = self.__ping(address)    
+        for port in self.ports:
+            temp = self.__ping(port)    
             if temp == True:
-                self.available.append(address)
+                self.available.append(port)
                 
     def initialize_jetson_nano(self, experiment, max_round, time_delay, num_samples):
-        for address in self.available:
-            self.__initialize(address, experiment, max_round, time_delay, num_samples)
+        for port in self.available:
+            self.__initialize(port, experiment, max_round, time_delay, num_samples)
     
     def fetch_results(self):
         return FederatedServer.accuracies

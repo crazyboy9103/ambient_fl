@@ -9,6 +9,8 @@ from random import random
 import numpy as np
 import requests
 import tensorflow as tf
+import sys
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Quiet tensorflow error messages
 
@@ -387,7 +389,8 @@ class Client:
 
         if self.current_round >= self.max_round:
             print(f"Client {self.fed_id} finished")
-            return 
+            sys.exit()
+
 
         if self.global_round == self.current_round: #need update 
             global_weight = self.request_global_weight()
