@@ -27,7 +27,7 @@ class GlobalExecute:
         self.cli.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy())
         
         self.clients = {}
-        self.available = []
+        self.ping()
 
         pass
 
@@ -92,7 +92,6 @@ class GlobalExecute:
     
 if __name__ == "__main__":
     cl = GlobalExecute()
-    cl.ping()
     cl.global_exec(COMMAND)
     
     res = "y"
@@ -102,7 +101,8 @@ if __name__ == "__main__":
             new_command = input("new command:\n")
             new_command.strip("\n")
             cl.global_exec(str(new_command))
-        elif res == "n":
+        
+        else:
             for k, v in cl.clients.items():
                 v.close()
             sys.exit()
