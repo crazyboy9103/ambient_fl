@@ -20,21 +20,14 @@ class FederatedServer:
     
     accuracies = {} # for all clients
     
-    model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dropout(0.5),
-            tf.keras.layers.Dense(10, activation='softmax')
-        ])
-    model.compile
-    mo
+    model = None
     
-    def __init__(self):
+    
+    
+    @classmethod
+    def __init__(cls):
         print("Federated init")
+        cls.build_model()
 
     @classmethod
     def update(cls, local_weight):
@@ -53,7 +46,21 @@ class FederatedServer:
             cls.current_round += 1
             accuracies[cls.current_round] = accuracy
             accuracy = {}
-            
+    
+    @classmethod
+    def build_model(cls):
+        cls.model = tf.keras.models.Sequential([
+                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
+                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
+                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
+                    tf.keras.layers.Dropout(0.25), 
+                    tf.keras.layers.Flatten(), 
+                    tf.keras.layers.Dense(128, activation='relu'), 
+                    tf.keras.layers.Dropout(0.5), 
+                    tf.keras.layers.Dense(10, activation='softmax')
+            ])
+        cls.model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+
     @classmethod
     def avg(cls):
         # averages the parameters
@@ -94,7 +101,9 @@ class FederatedServer:
         cls.experiment = 1
         cls.fed_id = 0
         cls.total_num_data = 0
-
+        #tentative
+        tf.keras.backend.clear_session()
+        cls.build_model()
     @classmethod
     def get_avg(cls):
         return cls.global_weight
