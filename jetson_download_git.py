@@ -1,12 +1,25 @@
 import paramiko
 import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--command", type=str, default="ls", help="linux command to execute globally")
+parser.add_argument("--min", type=str, default="20101")
+parser.add_argument("--max", type=str, default="20136")
+args = parser.parse_args()
 JETSON_IP = "147.47.200.209"
-MIN_PORT = "20101"
-MAX_PORT = "20136"
+MIN_PORT = args.min
+MAX_PORT = args.max
 USERNAME = "jetson"
 PASSWORD = "jetson"
 
+
+COMMAND = args.command
+
+
+   
+
 available = []
+
+
 
 def ping():
     for port in range(int(MIN_PORT), int(MAX_PORT)+1):
@@ -24,8 +37,7 @@ def ping():
             
             if lines:
                 available.append(port)
-                print(f"{port} is working")
-                #print(lines)
+                print(f"{port} is working: ls {lines}")
 
             cli.close()
 
@@ -47,6 +59,7 @@ def ping():
 
 def global_exec(command):
     # command : linux command to execute 
+    print(f"Executes '{command}'")
     for port in available:
         try:
             cli = paramiko.SSHClient()
@@ -54,35 +67,25 @@ def global_exec(command):
             #cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
             cli.connect(JETSON_IP, port=port, username=USERNAME, password=PASSWORD)
-
-            stdin, stdout, stderr = cli.exec_command(command)
             
-
-            stdin, stdout, stderr = stdin.readlines(), stdout.readlines(), stderr.readlines()
-            if stdin:
-                print(f"INPUT {stdin}")
+            _, stdout, stderr = cli.exec_command(f"{command}")
+            
             if stdout:
-                print(f"OUTPUT {stdout}")
+                stdout = stdout.readlines()
             if stderr:
-                print(f"ERROR {stderr}")
+                stderr = stderr.readlines()
+            
+            if stdout:
+                print(f"Port {port} OUTPUT {stdout}")
+            if stderr:
+                print(f"Port {port} ERROR {stderr}")
             
 
         except Exception as e:
-            print(f"Port {port} error")
+            print(f"Port {port} error {i}")
             continue
 
 
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--command", type=str, help="linux command to execute globally")
-
-    args = parser.parse_args()
-
     ping()
-
-    command = args.command
-
-    global_exec(command)
-
+    global_exec(COMMAND)
