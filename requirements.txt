@@ -31,6 +31,5 @@ wrapt
 pandas
 Keras
 scikit-learn
-matplotlib
 tensorflow
 paramiko
