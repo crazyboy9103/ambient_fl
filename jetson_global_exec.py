@@ -1,6 +1,8 @@
 import paramiko
 import sys
 import argparse
+import threading
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str, default="ls", help="linux command to execute globally")
 parser.add_argument("--min", type=str, default="20101")
@@ -11,7 +13,7 @@ MIN_PORT = args.min
 MAX_PORT = args.max
 USERNAME = "jetson"
 PASSWORD = "jetson"
-COMMAND = args.command
+COMMAND = args.command.strip("\n")
 
 class GlobalExecute:
     def __init__(self):
@@ -58,7 +60,14 @@ class GlobalExecute:
     def global_exec(self, command):
         # command : linux command to execute 
         print(f"Executes '{command}'")
+        
         for port in self.available:
+            thread = threading.Thread(target = self.__execute, args=(port, command,))
+
+            thread.start()
+
+        """
+        for port in self.available:  
             try:
                 cli = self.clients[port]
                 stdin, stdout, stderr = cli.exec_command(f"{command}")
@@ -77,6 +86,25 @@ class GlobalExecute:
             except Exception as e:
                 print(f"Port {port} error {e}")
                 continue
+        """
+    def __execute(self, port, command):
+        try: 
+            cli = self.clients[port]
+            stdin, stdout, stderr = cli.exec_command(f"{command}")
+
+            if stdout:
+                stdout = stdout.readlines()
+            if stderr:
+                stderr = stderr.readlines()
+
+            print(f"Port {port} OUTPUT {stdout}")
+
+            if stderr:
+                print(f"Port {port} ERROR {stderr}")
+
+        except Exception as e:
+            print(f"Port {port} error {e}")
+            pass
 
 
     
