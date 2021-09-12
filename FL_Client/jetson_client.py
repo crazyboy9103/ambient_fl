@@ -1,5 +1,4 @@
-# Usage : python jetson_client.py --ip IP --p PORT
-import matplotlib.pyplot as plt
+#Usage : python jetson_client.py --ip IP --p PORT
 import argparse
 import json
 import os

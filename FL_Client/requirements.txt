@@ -1,0 +1,11 @@
+numpy
+requests
+scipy
+six
+tensorflow-estimator
+tensorflow-gpu
+urllib3
+Keras
+scikit-learn
+tensorflow
+paramiko
