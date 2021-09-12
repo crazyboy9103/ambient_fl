@@ -11,15 +11,7 @@ MIN_PORT = args.min
 MAX_PORT = args.max
 USERNAME = "jetson"
 PASSWORD = "jetson"
-
-
 COMMAND = args.command
-
-
-   
-
-available = []
-
 
 class GlobalExecute:
     def __init__(self):
@@ -28,8 +20,6 @@ class GlobalExecute:
         
         self.clients = {}
         self.ping()
-
-        pass
 
     def ping(self):
         self.available = []
