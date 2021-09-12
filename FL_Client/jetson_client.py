@@ -22,7 +22,7 @@ class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder
         return json.JSONEncoder.default(self, o)
 
 class Client:
-    def __init__(self, max_round: int, time_delay = 5, suppress=True, num_samples=600):
+    def __init__(self, max_round, time_delay = 5, suppress=True, num_samples=600):
         """
         @params: 
             experiment : Desired data split type (1~4)
@@ -468,5 +468,5 @@ if __name__ == "__main__":
     time_delay = args.delay
     num_samples = args.num
     
-    client = Client(max_round = max_round, time_delay = time_delay, num_samples)
+    client = Client(max_round = max_round, time_delay = time_delay, num_samples = num_samples)
     client.task()
