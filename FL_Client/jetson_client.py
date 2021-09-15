@@ -366,7 +366,8 @@ class Client:
             global_weight = np.array(global_weight)
             self.model.set_weights(global_weight)
         
-        self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=16, verbose=0)
+
+        self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=8, verbose=0)
         N = self.request_total_num_data()
         
         local_weight = np.multiply(self.model.get_weights(), (self.local_data_num/N))
