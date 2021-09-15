@@ -19,16 +19,15 @@ def index(request):
 def round(request):
     return HttpResponse(FederatedServer.get_current_round(), status.HTTP_200_OK)
 
-@api_view(['GET', 'PUT'])
+@api_view(['GET'])
 def experiment(request):
-    if request.method == "GET":
-        json_data = json.dumps(FederatedServer.experiment)
-        return HttpResponse(json_data, status.HTTP_200_OK)
+    json_data = json.dumps(FederatedServer.experiment)
+    return HttpResponse(json_data, status.HTTP_200_OK)
             
-    elif request.method == "PUT":
-        json_data = JSONParser().parse(request)
-        FederatedServer.experiment = int(json_data)
-        return HttpResponse("Request PUT OK", status.HTTP_200_OK)
+    #elif request.method == "PUT":
+    #    json_data = JSONParser().parse(request)
+    #    FederatedServer.experiment = int(json_data)
+    #    return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
 @api_view(['PUT'])
 def accuracy(request):

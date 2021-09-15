@@ -18,6 +18,6 @@ urlpatterns = [
     path('total_num/', views.total_num_data),
     path('experiment', views.experiment),
     path('experiment/', views.experiment),
-    path('accuracy', views.experiment),
-    path('accuracy/', views.experiment)
+    path('accuracy', views.accuracy),
+    path('accuracy/', views.accuracy)
  ]
