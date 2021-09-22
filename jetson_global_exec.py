@@ -5,8 +5,8 @@ import threading
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str, default="ls", help="linux command to execute globally")
-parser.add_argument("--min", type=str, default="20101")
-parser.add_argument("--max", type=str, default="20136")
+parser.add_argument("--min", type=str, default="20101", help="smallest (minimum) port number")
+parser.add_argument("--max", type=str, default="20136", help="largest (maximum) port number")
 args = parser.parse_args()
 JETSON_IP = "147.47.200.209"
 MIN_PORT = args.min
