@@ -383,7 +383,7 @@ class Client:
                   1. Check the client's current round
                       1.1. If the current round is 
         """
-        
+        print(f"ID {self.fed_id} task") 
         #this is for executing on multiple devices
         self.global_round = self.request_global_round()
 
