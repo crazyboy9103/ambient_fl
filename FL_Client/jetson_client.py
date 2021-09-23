@@ -373,7 +373,6 @@ class Client:
                       1.1. If the current round is 
         """
         print(f"ID {self.fed_id} task") 
-        #this is for executing on multiple devices
         self.global_round = self.request_global_round()
 
         if self.current_round >= self.max_round:
@@ -400,52 +399,11 @@ class Client:
             time.sleep(self.time_delay * 2)
             return self.task()
 
-        '''#this is for executing on multiple devices
-        else:
-            #this is for executing on one device
-            self.global_round = self.request_global_round()
-            
-
-
-            if self.global_round == self.current_round: #need update 
-                start = time.time()
-                if not self.suppress:
-                    print("Request global weight...")
-                global_weight = self.request_global_weight()
-                if not self.suppress:
-                    print("Global weight request done")
-
-                if not self.suppress:
-                    print("Training local model...")
-                local_weight = self.train_local_model()
-                if not self.suppress:
-                    print("Training done")
-
-                acc = self.validation(local_weight)
-
-
-                if not self.suppress:
-                    print("Uploading local weight...")
-                self.upload_local_weight(local_weight)
-                if not self.suppress:
-                    print("Weight upload done")
-
-                if not self.suppress:
-                    print("=========================")
-                end = time.time()
-
-                self.current_round += 1
-
-                threading.Timer(self.time_delay, self.task, [multiple_devices]).start()
-
-            else: #need to wait until other clients finish
-                threading.Timer(self.time_delay*2, self.task, [multiple_devices]).start()
-        #this is for executing on one device'''
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Usage --ip {ip} --p {port} --max {max round} --delay {time delay} --num {num samples}")
-    parser.add_argument("--ip", type=str, help="base ip address", default="127.0.0.1")
-    parser.add_argument("--p", type=str, help="designated port", default="8000")
+    parser.add_argument("--ip", type=str, help="base ip address", default="147.47.200.178")
+    parser.add_argument("--p", type=str, help="designated port", default="9103")
     parser.add_argument("--max", type=int, help="max round", default=5)
     parser.add_argument("--delay", type=int, help="time delay", default=5)
     parser.add_argument("--num", type=int, help="num samples", default=600)
