@@ -5,10 +5,10 @@ logger = logging.getLogger(__name__)
 import tensorflow as tf
 import json
 
-f = open("training_history.json", "a")
+f = open("training_history.json", "r")
 json_history = json.load(f)
 
-f = open("training_history.json", "w")
+f = open("training_history.json", "a")
 
 
 curr_id = 0
@@ -32,16 +32,27 @@ class FederatedServer:
     current_count = 0 # Task가 끝난 클라이언트의 개수
     current_round = 0 # 현재 라운드
     
+    
     fed_id = 0 # 각 클라이언트를 구별하기 위한 아이디
+    max_round = 5 #
     total_num_data = 0 # 모든 클라이언트가 본 전체 데이터 개수
     
     accuracy = {} # for each client 
     num_data = {} # for each client
     accuracies = {} # for all clients, for all rounds
     
-    model = None
-    
-    FederatedServer.build_model()
+    model = tf.keras.models.Sequential([
+                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
+                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
+                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
+                    tf.keras.layers.Dropout(0.25), 
+                    tf.keras.layers.Flatten(), 
+                    tf.keras.layers.Dense(128, activation='relu'), 
+                    tf.keras.layers.Dropout(0.5), 
+                    tf.keras.layers.Dense(10, activation='softmax')
+            ])
+    model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+
     @classmethod
     def __init__(cls):
         pass
@@ -56,7 +67,6 @@ class FederatedServer:
         
         cls.local_weights[fed_id] = weight_list
         cls.current_count += 1 # increment current count
-        #cls.local_weights.append(weight_list) # append the received local weight to the local weights list that contains all other
 
         if cls.current_count == cls.client_number: # if current count = the max count
             cls.avg() # fed avg 
@@ -71,20 +81,12 @@ class FederatedServer:
             cls.local_weights = {}
             cls.local_num_data = {}
 
-    
-    @classmethod
-    def build_model(cls):
-        cls.model = tf.keras.models.Sequential([
-                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
-                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
-                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
-                    tf.keras.layers.Dropout(0.25), 
-                    tf.keras.layers.Flatten(), 
-                    tf.keras.layers.Dense(128, activation='relu'), 
-                    tf.keras.layers.Dropout(0.5), 
-                    tf.keras.layers.Dense(10, activation='softmax')
-            ])
-        cls.model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+        if cls.current_round == cls.max_round:
+            json.dump(json_history, f)
+            print(f"Training finished. Training information saved in 'training_history.json' with key {curr_id}")
+            cls.reset()
+            print("Server reset complete")
+
 
     @classmethod
     def avg(cls):
@@ -124,7 +126,7 @@ class FederatedServer:
 
     @classmethod
     def reset(cls):
-        json.dump(json_history, f)
+        #json.dump(json_history, f)
         cls.accuracy = {}
         cls.global_weight = None
         cls.local_weights = {}
@@ -137,7 +139,20 @@ class FederatedServer:
         cls.total_num_data = 0
         #tentative
         tf.keras.backend.clear_session()
-        cls.build_model()
+
+        cls.model = tf.keras.models.Sequential([
+                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
+                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
+                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
+                    tf.keras.layers.Dropout(0.25), 
+                    tf.keras.layers.Flatten(), 
+                    tf.keras.layers.Dense(128, activation='relu'), 
+                    tf.keras.layers.Dropout(0.5), 
+                    tf.keras.layers.Dense(10, activation='softmax')
+            ])
+        cls.model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+
+       
     @classmethod
     def get_avg(cls):
         return cls.global_weight
