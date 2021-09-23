@@ -60,7 +60,6 @@ class Client:
         self.global_round = self.request_global_round()
         self.current_round = 0
         
-        #self.change_client_number(max_round)
         self.max_round = max_round # Set the maximum number of rounds
         '''
         Downloads MNIST dataset and prepares (train_x, train_y), (test_x, test_y)
@@ -251,21 +250,10 @@ class Client:
         @return: 
             None : update the total number of training images that is stored in the server
         """
-        local_num_data_to_json = json.dumps(num_data)
+        temp = {'fed_id': self.fed_id, 'num_data': num_data}
+        local_num_data_to_json = json.dumps(temp)
         requests.put(self.total_num_data_url, data=local_num_data_to_json)
     
-    def request_total_num_data(self):
-        """
-        @params: 
-            None
-        
-        @return: 
-            result : Total number of training images available to all clients
-        """
-        result = requests.get(self.total_num_data_url)
-        result = int(result.text)
-        return result
-
     def request_fed_id(self):
         """
         @params: 
@@ -330,10 +318,12 @@ class Client:
             None : Add current client's weights to the server (Server accumulates these from multiple clients and computes the global weight)
         """
         local_weight_to_json = json.dumps(local_weight, cls=NumpyEncoder)
-        requests.put(self.weight_url, data=local_weight_to_json)
+        local_weight = {"fed_id":self.fed_id, "local_weights": local_weight_to_json}
+        local_weight = json.dumps(local_weight) 
+        requests.put(self.weight_url, data=local_weight)
         
     def upload_local_accuracy(self, accuracy):
-        temp_dict = {'acc':accuracy, 'id':self.fed_id}
+        temp_dict = {'accuracy':accuracy, 'fed_id':self.fed_id}
         local_acc_to_json = json.dumps(temp_dict)
         requests.put(self.accuracy_url, data=local_acc_to_json)
         
@@ -368,9 +358,8 @@ class Client:
         
 
         self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=8, verbose=0)
-        N = self.request_total_num_data()
         
-        local_weight = np.multiply(self.model.get_weights(), (self.local_data_num/N))
+        local_weight = self.model.get_weights()
         return local_weight
     
     def task(self):

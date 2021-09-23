@@ -3,10 +3,29 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 import tensorflow as tf
+import json
+
+f = open("training_history.json", "a")
+json_history = json.load(f)
+
+f = open("training_history.json", "w")
+
+
+curr_id = 0
+if "last_id" in json_history.keys():
+    last_id = json_history["last_id"]
+    curr_id = last_id + 1
+else:
+    json_history["last_id"] = curr_id
+
+json_history[curr_id] = {}
+
+print(f"The id for this training is {curr_id}. Use it to retrieve the recorded results") 
+
 class FederatedServer:
     client_number = 6 # 전체 클라이언트 개수
     global_weight = None # 현재 서버에 저장되어있는 weight
-    local_weights = [] # 각 클라이언트에서 받아온 parameter들의 리스트
+    local_weights = {} # 각 클라이언트에서 받아온 parameter들의 리스트
     
     experiment = 1 #Uniform by default
     
@@ -16,45 +35,42 @@ class FederatedServer:
     fed_id = 0 # 각 클라이언트를 구별하기 위한 아이디
     total_num_data = 0 # 모든 클라이언트가 본 전체 데이터 개수
     
-    accuracy = {}
+    accuracy = {} # for each client 
+    num_data = {} # for each client
+    accuracies = {} # for all clients, for all rounds
     
-    accuracies = {} # for all clients
-
-    model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
-            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
-            tf.keras.layers.Dropout(0.25), 
-            tf.keras.layers.Flatten(), 
-            tf.keras.layers.Dense(128, activation='relu'), 
-            tf.keras.layers.Dropout(0.5), 
-            tf.keras.layers.Dense(10, activation='softmax')
-            ])
-    model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
-
+    model = None
     
+    FederatedServer.build_model()
     @classmethod
     def __init__(cls):
-        print("Federated init")
-        #cls.build_model()
+        pass
 
     @classmethod
-    def update(cls, local_weight):
+    def update(cls, fed_id, local_weight):
         weight_list = []
       
         for i in range(len(local_weight)): 
             temp = np.array(local_weight[i])
             weight_list.append(temp)
-            
+        
+        cls.local_weights[fed_id] = weight_list
         cls.current_count += 1 # increment current count
-        cls.local_weights.append(weight_list) # append the received local weight to the local weights list that contains all other
+        #cls.local_weights.append(weight_list) # append the received local weight to the local weights list that contains all other
 
         if cls.current_count == cls.client_number: # if current count = the max count
             cls.avg() # fed avg 
             cls.current_count = 0
             cls.current_round += 1
-            accuracies[cls.current_round] = accuracy
-            accuracy = {}
+            
+        
+            json_history[curr_id][cls.current_round] = {'accuracy': cls.accuracy, 'local_weights': cls.local_weights, 'experiment':cls.experiment}
+
+
+            cls.accuracy = {}
+            cls.local_weights = {}
+            cls.local_num_data = {}
+
     
     @classmethod
     def build_model(cls):
@@ -73,42 +89,51 @@ class FederatedServer:
     @classmethod
     def avg(cls):
         # averages the parameters
-        
-        temp_weight = cls.local_weights.pop()
+        # the weights are already weighted at the client side
+        # so simply add weights 
+        N = cls.total_num_data
+
+        temp_weight = np.zeros_like(cls.local_weights[0])
+
         for i in range(len(temp_weight)):
             temp_weight[i] = np.array(temp_weight[i])
 
-        for i in range(len(cls.local_weights)):
-            for j in range(len(cls.local_weights[i])):
-                temp = np.array(cls.local_weights[i][j])
-                temp_weight[j] = temp_weight[j] + temp
-        
+        for fed_id, local_weights in cls.local_weights.items():
+            n = cls.num_data[fed_id]
+            local_weights = np.array(local_weights)
+            weighted_weights = (n/N) * local_weights
+            temp_weight = temp_weight + weighted_weights
+            
         cls.global_weight = temp_weight
-        
-        cls.model.set_weights(local_weight)
+        cls.model.set_weights(cls.global_weight)
         
         mnist = tf.keras.datasets.mnist
+
         (_, _), (test_images, test_labels) = mnist.load_data()
+
+        n = len(test_images)
+        indices = np.random.choice([i for i in range(n)], n//10)
+        
+        test_images = test_images[indices]
         test_images = test_images / 255
         test_images = test_images.reshape(-1,28, 28, 1)
         
         acc = cls.model.evaluate(test_images, test_labels)
-        accuracy[0] = acc
         
-        cls.local_weights = []  # reset local weights
-        cls.local_num_data = []
-    
+        cls.accuracy[cls.fed_id+1] = acc # last id + 1 for the federated learning model accuarcy 
+
     @classmethod
     def reset(cls):
-        cls.accuracies = {}
+        json.dump(json_history, f)
         cls.accuracy = {}
         cls.global_weight = None
-        cls.local_weights = []
-        cls.local_num_data = []
+        cls.local_weights = {}
+        cls.num_data = {}
         cls.current_count = 0
         cls.current_round = 0
         cls.experiment = 1
         cls.fed_id = 0
+        cls.num_data = {}
         cls.total_num_data = 0
         #tentative
         tf.keras.backend.clear_session()

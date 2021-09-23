@@ -31,19 +31,13 @@ def experiment(request):
         FederatedServer.experiment = int(json_data)
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
-@api_view(['PUT', 'GET'])
+@api_view(['PUT'])
 def accuracy(request):
-    
     if request.method == 'PUT':
-     
         json_data = JSONParser().parse(request)
-        FederatedServer.accuracy[json_data['id']] = json_data['acc']
-    
+        FederatedServer.accuracy[int(json_data['fed_id'])] = dict(json_data['accuracy'])
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
-    elif request.method == 'GET':
-        accuracies_in_json = json.dumps(FederatedServer.accuracies)
-        return HttpResponse(accuracies_in_json, status.HTTP_200_OK)
-   
+
 @api_view(['PUT'])
 def client_num(request):
     json_data = JSONParser().parse(request)
@@ -59,10 +53,12 @@ def weight(request):
 
     elif request.method == 'PUT':
         json_data = JSONParser().parse(request)
-        FederatedServer.update(json_data)
+        fed_id = json_data['fed_id']
+        weights = json_data['weights']
+        FederatedServer.update(fed_id, weights)
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
-    else :
+    else:
         return HttpResponse("Request OK", status.HTTP_200_OK)
 
 @api_view(['GET', 'PUT'])
@@ -72,14 +68,16 @@ def total_num_data(request):
 
     elif request.method == 'PUT':
         json_data = JSONParser().parse(request)
-        FederatedServer.total_num_data += int(json_data)
+        fed_id, num_data = int(json_data["fed_id"]), int(json_data["num_data"])
+        FederatedServer.total_num_data += num_data
+        FederatedServer.num_data[fed_id] = num_data
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
 @api_view(['GET'])
 def get_id(request):
-    temp_fed_id = FederatedServer.fed_id
+    fed_id = FederatedServer.fed_id
     FederatedServer.fed_id += 1
-    return HttpResponse(temp_fed_id, status.HTTP_200_OK)
+    return HttpResponse(fed_id, status.HTTP_200_OK)
 
 @api_view(['GET'])
 def reset(request):
