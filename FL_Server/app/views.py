@@ -35,7 +35,7 @@ def experiment(request):
 def accuracy(request):
     if request.method == 'PUT':
         json_data = JSONParser().parse(request)
-        FederatedServer.accuracy[int(json_data['fed_id'])] = dict(json_data['accuracy'])
+        FederatedServer.accuracy[int(json_data['fed_id'])] = json_data['accuracy']
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
 @api_view(['PUT'])

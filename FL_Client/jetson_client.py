@@ -318,7 +318,7 @@ class Client:
             None : Add current client's weights to the server (Server accumulates these from multiple clients and computes the global weight)
         """
         local_weight_to_json = json.dumps(local_weight, cls=NumpyEncoder)
-        local_weight = {"fed_id":self.fed_id, "local_weights": local_weight_to_json}
+        local_weight = {"fed_id":self.fed_id, "weights": local_weight_to_json}
         local_weight = json.dumps(local_weight) 
         requests.put(self.weight_url, data=local_weight)
         
