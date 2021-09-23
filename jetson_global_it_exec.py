@@ -69,10 +69,10 @@ if __name__ == "__main__":
   import requests
   import json
   client_num_in_json = json.dumps(args.client)
-  res = requests.put("147.47.200.178:9103/client_num", data=client_num_in_json)
+  res = requests.put("http://147.47.200.178:9103/client_num/", data=client_num_in_json)
   print("client number put", res.text)
   exp_in_json = json.dumps(args.experiment)
-  res = requests.put("147.47.200.178:9103/experiment", data=exp_in_json)
+  res = requests.put("http://147.47.200.178:9103/experiment/", data=exp_in_json)
   print("experiment put", res.text)
 
   jetsonController = JetsonController(min_port=args.min, max_port=args.max)
