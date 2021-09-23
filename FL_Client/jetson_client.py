@@ -378,6 +378,7 @@ class Client:
         if self.current_round >= self.max_round:
             print(f"Client {self.fed_id} finished")
             sys.exit()
+            return 
 
 
         if self.global_round == self.current_round: #need update 
