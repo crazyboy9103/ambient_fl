@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 import tensorflow as tf
 class FederatedServer:
-    client_number = 5 # 전체 클라이언트 개수
+    client_number = 6 # 전체 클라이언트 개수
     global_weight = None # 현재 서버에 저장되어있는 weight
     local_weights = [] # 각 클라이언트에서 받아온 parameter들의 리스트
     
@@ -19,15 +19,24 @@ class FederatedServer:
     accuracy = {}
     
     accuracies = {} # for all clients
-    
-    model = None
-    
-    
+
+    model = tf.keras.models.Sequential([
+            tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
+            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
+            tf.keras.layers.Dropout(0.25), 
+            tf.keras.layers.Flatten(), 
+            tf.keras.layers.Dense(128, activation='relu'), 
+            tf.keras.layers.Dropout(0.5), 
+            tf.keras.layers.Dense(10, activation='softmax')
+            ])
+    model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+
     
     @classmethod
     def __init__(cls):
         print("Federated init")
-        cls.build_model()
+        #cls.build_model()
 
     @classmethod
     def update(cls, local_weight):
