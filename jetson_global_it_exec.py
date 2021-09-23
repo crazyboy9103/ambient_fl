@@ -3,9 +3,12 @@ import time
 import threading
 import argparse
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--min", type=int, default=20101, help="minimum port number")
 parser.add_argument("--max", type=int, default=20131, help="maximum port number")
+parser.add_argument("--client", type=int, default=5, help="total number of clients")
+parser.add_argument("--experiment", type=int, default=1, help="(1,2,3,4) experiment")
 args = parser.parse_args()
 
 
@@ -54,7 +57,24 @@ class JetsonController:
         return False
     return True
 
+
+
+
+
+
+
 if __name__ == "__main__":
+  
+
+  import requests
+  import json
+  client_num_in_json = json.dumps(args.client)
+  res = requests.put("147.47.200.178:9103/client_num", data=client_num_in_json)
+  print("client number put", res.text)
+  exp_in_json = json.dumps(args.experiment)
+  res = requests.put("147.47.200.178:9103/experiment", data=exp_in_json)
+  print("experiment put", res.text)
+
   jetsonController = JetsonController(min_port=args.min, max_port=args.max)
   command = "ls -al"
   jetsonController.global_execute(command)
