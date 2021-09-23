@@ -31,13 +31,19 @@ def experiment(request):
         FederatedServer.experiment = int(json_data)
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
-@api_view(['PUT'])
+@api_view(['PUT', 'GET'])
 def accuracy(request):
-    json_data = JSONParser().parse(request)
-    FederatedServer.accuracy[json_data['id']] = json_data['acc']
     
-    return HttpResponse("Request PUT OK", status.HTTP_200_OK)
-
+    if request.method == 'PUT':
+     
+        json_data = JSONParser().parse(request)
+        FederatedServer.accuracy[json_data['id']] = json_data['acc']
+    
+        return HttpResponse("Request PUT OK", status.HTTP_200_OK)
+    elif request.method == 'GET':
+        accuracies_in_json = json.dumps(FederatedServer.accuracies)
+        return HttpResponse(accuracies_in_json, status.HTTP_200_OK)
+   
 @api_view(['PUT'])
 def client_num(request):
     json_data = JSONParser().parse(request)
