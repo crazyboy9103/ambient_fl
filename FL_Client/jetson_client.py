@@ -424,7 +424,7 @@ class Client:
         else: #need to wait until other clients finish
             #time.sleep(self.time_delay * 2)
             #return self.task()
-            return threading.Timer(self.time_delay, self.task).start()
+            threading.Timer(self.time_delay, self.task).start()
 
         
 if __name__ == "__main__":
