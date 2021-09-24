@@ -358,7 +358,7 @@ class Client:
             self.model.set_weights(global_weight)
         
 
-        self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=32, verbose=0)
+        self.model.fit(self.split_train_images, self.split_train_labels, epochs=5, batch_size=8, verbose=0)
         
         local_weight = self.model.get_weights()
         return local_weight
