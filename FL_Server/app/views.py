@@ -22,7 +22,6 @@ def round(request):
 @api_view(['GET', 'PUT'])
 def experiment(request):
     if request.method == 'GET':
-
         json_data = json.dumps(FederatedServer.experiment)
         return HttpResponse(json_data, status.HTTP_200_OK)
             
@@ -35,7 +34,7 @@ def experiment(request):
 def accuracy(request):
     if request.method == 'PUT':
         json_data = JSONParser().parse(request)
-        FederatedServer.accuracy[int(json_data['fed_id'])] = json_data['accuracy']
+        FederatedServer.accuracy[int(json_data['fed_id'])] = float(json_data['accuracy'])
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
 @api_view(['PUT'])

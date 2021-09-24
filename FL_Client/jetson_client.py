@@ -391,17 +391,21 @@ class Client:
             self.upload_local_weight(local_weight)
 
             self.current_round += 1
-            threading.Timer(self.time_delay, self.task).start()
-            #time.sleep(self.time_delay)
 
-            #return self.task()
+            time.sleep(self.time_delay)
+            
+            return self.task()
 
         else: #need to wait until other clients finish
-            #time.sleep(self.time_delay * 2)
-            #return self.task()
-            threading.Timer(self.time_delay, self.task).start()
+            time.sleep(self.time_delay * 2)
+            return self.task()
+
         
 if __name__ == "__main__":
+    
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+    
     parser = argparse.ArgumentParser(description="Usage --ip {ip} --p {port} --max {max round} --delay {time delay} --num {num samples}")
     parser.add_argument("--ip", type=str, help="base ip address", default="147.47.200.178")
     parser.add_argument("--p", type=str, help="designated port", default="9103")
