@@ -1,1 +1,1 @@
-python3 manage.py runserver 172.17.0.2:9103
+python3 manage.py runserver 0.0.0.0:9103
