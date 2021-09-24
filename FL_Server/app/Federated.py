@@ -119,7 +119,7 @@ class FederatedServer:
         
         acc = cls.model.evaluate(test_images, test_labels)
         
-        cls.accuracy[cls.client_number] = acc # last id + 1 for the federated learning model accuarcy 
+        cls.accuracy[cls.client_number] = acc[1] # last id + 1 for the federated learning model accuarcy 
     
     @classmethod
     def reset(cls):
