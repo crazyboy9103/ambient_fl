@@ -296,20 +296,23 @@ class Client:
         @return: 
             global_weight : Up-to-date version of the model parameters
         """
+        print("request global weight started")
         result = requests.get(self.weight_url)
         result_data = result.json()
-        
+        print("result_data **", result_data, type(result_data)) 
         global_weight = None
         if result_data is not None:
             global_weight = []
             for i in range(len(result_data)):
                 temp = np.array(result_data[i], dtype=np.float32)
                 global_weight.append(temp)
-            
+        
+        print("request global weight finished")
         
         return global_weight
 
     def upload_local_weight(self, local_weight=[]):
+        print("upload local weight started")
         """
         @params: 
             local_weight : the local weight that current client has converged to
@@ -317,17 +320,35 @@ class Client:
         @return: 
             None : Add current client's weights to the server (Server accumulates these from multiple clients and computes the global weight)
         """
+        import time
+        if isinstance(local_weight, (np.ndarray, np.generic)):
+            print("shape ", local_weight.shape)
+        else:
+            print("shape ", len(local_weight), len(local_weight[0]))
+        
+        start=time.time()
+        
         local_weight_to_json = json.dumps(local_weight, cls=NumpyEncoder)
+        end = time.time()
+        print("json NumpyEncoder took", end-start)
+        start = end
         local_weight = {"fed_id":self.fed_id, "weights": local_weight_to_json}
         local_weight = json.dumps(local_weight) 
+        print("local_weight dumps complete. Size is ",sys.getsizeof(local_weight))
+        end = time.time()
+        print("dumps took", end-start)
+        start = end
         requests.put(self.weight_url, data=local_weight)
-        
+        end = time.time()
+        print("upload local weight took", end-start)
     def upload_local_accuracy(self, accuracy):
+        
+        print("upload local acc started")
         #first index of accuracy is accuracy (0 is loss) 
         temp_dict = {'accuracy':accuracy, 'fed_id':self.fed_id}
         local_acc_to_json = json.dumps(temp_dict)
-        requests.put(self.accuracy_url, data=local_acc_to_json)
-        
+        requests.put(self.accuracy_url, data=local_acc_to_json) 
+        print("upload local acc finished")
     def validation(self, local_weight=[]):
         """
         @params: 
@@ -336,12 +357,15 @@ class Client:
         @return: 
             acc : test accuracy of the current client's model
         """
+
+        print("validation started")
         if local_weight is not None:
             self.model.set_weights(local_weight)
             acc = self.model.evaluate(self.test_images, self.test_labels, verbose=0 if self.suppress else 1)
             e = {out: acc[i] for i, out in enumerate(self.model.metrics_names)}
             return acc
         
+        print("validation finished")
     def train_local_model(self):
         """
         @params: 
@@ -350,6 +374,7 @@ class Client:
         @return: 
             local_weight : local weight of the current client after training
         """
+        print("train started")
         global_weight = self.request_global_weight()
         if global_weight != None:
             global_weight = np.array(global_weight)
@@ -359,6 +384,7 @@ class Client:
         self.model.fit(self.split_train_images, self.split_train_labels, epochs=5, batch_size=8, verbose=0)
         
         local_weight = self.model.get_weights()
+        print("train finished")
         return local_weight
     
     def task(self):
