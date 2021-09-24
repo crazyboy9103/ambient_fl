@@ -415,7 +415,7 @@ class Client:
             self.upload_local_accuracy(acc[1])
             self.current_round += 1
             
-            self.task()
+            return self.task()
             #threading.Timer(self.time_delay, self.task).start()
             #time.sleep(self.time_delay)
             
@@ -424,7 +424,7 @@ class Client:
         else: #need to wait until other clients finish
             #time.sleep(self.time_delay * 2)
             #return self.task()
-            threading.Timer(self.time_delay, self.task).start()
+            return threading.Timer(self.time_delay, self.task).start()
 
         
 if __name__ == "__main__":
