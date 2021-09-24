@@ -52,8 +52,8 @@ def weight(request):
 
     elif request.method == 'PUT':
         json_data = JSONParser().parse(request)
-        fed_id = json_data['fed_id']
-        weights = json_data['weights']
+        fed_id = int(json_data['fed_id'])
+        weights = list(json_data['weights'])
         FederatedServer.update(fed_id, weights)
         return HttpResponse("Request PUT OK", status.HTTP_200_OK)
 
