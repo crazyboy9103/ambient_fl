@@ -319,7 +319,7 @@ class Client:
         """
         local_weight_to_json = json.dumps(local_weight, cls=NumpyEncoder)
         local_weight = {"fed_id":self.fed_id, "weights": local_weight_to_json}
-        #local_weight = json.dumps(local_weight) 
+        local_weight = json.dumps(local_weight) 
         requests.put(self.weight_url, data=local_weight)
         
     def upload_local_accuracy(self, accuracy):
