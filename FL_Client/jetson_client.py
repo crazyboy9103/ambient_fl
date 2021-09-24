@@ -323,7 +323,8 @@ class Client:
         requests.put(self.weight_url, data=local_weight)
         
     def upload_local_accuracy(self, accuracy):
-        temp_dict = {'accuracy':accuracy, 'fed_id':self.fed_id}
+        #first index of accuracy is accuracy (0 is loss) 
+        temp_dict = {'accuracy':accuracy[1], 'fed_id':self.fed_id}
         local_acc_to_json = json.dumps(temp_dict)
         requests.put(self.accuracy_url, data=local_acc_to_json)
         
