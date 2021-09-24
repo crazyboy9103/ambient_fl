@@ -391,14 +391,17 @@ class Client:
             self.upload_local_weight(local_weight)
 
             self.current_round += 1
-
-            time.sleep(self.time_delay)
             
-            return self.task()
+            self.task()
+            #threading.Timer(self.time_delay, self.task).start()
+            #time.sleep(self.time_delay)
+            
+            #return self.task()
 
         else: #need to wait until other clients finish
-            time.sleep(self.time_delay * 2)
-            return self.task()
+            #time.sleep(self.time_delay * 2)
+            #return self.task()
+            threading.Timer(self.time_delay, self.task).start()
 
         
 if __name__ == "__main__":
