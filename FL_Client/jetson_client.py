@@ -377,7 +377,7 @@ class Client:
 
         if self.current_round >= self.max_round:
             print(f"Client {self.fed_id} finished")
-            sys.exit()
+            #sys.exit()
             return 
 
 
@@ -391,15 +391,15 @@ class Client:
             self.upload_local_weight(local_weight)
 
             self.current_round += 1
+            threading.Timer(self.time_delay, self.task).start()
+            #time.sleep(self.time_delay)
 
-            time.sleep(self.time_delay)
-
-            return self.task()
+            #return self.task()
 
         else: #need to wait until other clients finish
-            time.sleep(self.time_delay * 2)
-            return self.task()
-
+            #time.sleep(self.time_delay * 2)
+            #return self.task()
+            threading.Timer(self.time_delay, self.task).start()
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Usage --ip {ip} --p {port} --max {max round} --delay {time delay} --num {num samples}")
