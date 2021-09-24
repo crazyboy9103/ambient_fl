@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 import tensorflow as tf
 import json
+from app import numpy_encoder
 
 f = open("training_history.json", "r")
 json_history = json.load(f)
@@ -62,7 +63,7 @@ class FederatedServer:
             temp = np.array(local_weight[i])
             weight_list.append(temp)
         
-        cls.local_weights[fed_id] = weight_list
+        cls.local_weights[fed_id] = np.array(weight_list)
         cls.current_count += 1 # increment current count
 
         if cls.current_count == cls.client_number: # if current count = the max count
@@ -71,8 +72,9 @@ class FederatedServer:
             cls.current_round += 1
             
             json_history[curr_id][cls.current_round] = {'accuracy': cls.accuracy, 'local_weights': cls.local_weights, 'experiment':cls.experiment}
+            
             with open("training_history.json", "w") as f:
-                json.dump(json_history, f)
+                json.dump(json_history, f, cls=numpy_encoder.NumpyEncoder)
     
             cls.accuracy = {}
             cls.local_weights = {}
