@@ -405,7 +405,6 @@ class Client:
 
         
 if __name__ == "__main__":
-    
     gpus = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
     

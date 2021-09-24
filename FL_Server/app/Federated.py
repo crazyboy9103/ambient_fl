@@ -119,8 +119,8 @@ class FederatedServer:
         
         acc = cls.model.evaluate(test_images, test_labels)
         
-        cls.accuracy[cls.fed_id+1] = acc # last id + 1 for the federated learning model accuarcy 
-
+        cls.accuracy[cls.client_number] = acc # last id + 1 for the federated learning model accuarcy 
+    
     @classmethod
     def reset(cls):
         #json.dump(json_history, f)
@@ -135,7 +135,7 @@ class FederatedServer:
         cls.num_data = {}
         cls.total_num_data = 0
         #tentative
-        tf.keras.backend.clear_session()
+        #tf.keras.backend.clear_session()
 
         cls.model = tf.keras.models.Sequential([
                     tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
