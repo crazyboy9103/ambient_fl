@@ -339,9 +339,7 @@ class Client:
         if local_weight is not None:
             self.model.set_weights(local_weight)
             acc = self.model.evaluate(self.test_images, self.test_labels, verbose=0 if self.suppress else 1)
-            self.upload_local_accuracy(acc)
             e = {out: acc[i] for i, out in enumerate(self.model.metrics_names)}
-
             return acc
         
     def train_local_model(self):
@@ -383,14 +381,12 @@ class Client:
 
 
         if self.global_round == self.current_round: #need update 
-            global_weight = self.request_global_weight()
-
             local_weight = self.train_local_model()
 
             acc = self.validation(local_weight)
 
             self.upload_local_weight(local_weight)
-
+            self.upload_local_accuracy(acc[1])
             self.current_round += 1
             
             self.task()
