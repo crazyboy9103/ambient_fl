@@ -94,10 +94,10 @@ class FederatedServer:
         # so simply add weights 
         N = cls.total_num_data
 
-        temp_weight = np.zeros_like(cls.local_weights[0])
+        temp_weight = np.zeros_like(cls.local_weights[0], dtype=np.float32)
 
-        for i in range(len(temp_weight)):
-            temp_weight[i] = np.array(temp_weight[i], dtype=np.float32)
+        #for i in range(len(temp_weight)):
+        #    temp_weight[i] = temp_weight[i], dtype=np.float32)
 
         for fed_id, local_weights in cls.local_weights.items():
             n = cls.num_data[fed_id]

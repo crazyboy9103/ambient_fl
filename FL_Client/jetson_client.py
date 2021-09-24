@@ -324,7 +324,7 @@ class Client:
         
     def upload_local_accuracy(self, accuracy):
         #first index of accuracy is accuracy (0 is loss) 
-        temp_dict = {'accuracy':accuracy[1], 'fed_id':self.fed_id}
+        temp_dict = {'accuracy':accuracy, 'fed_id':self.fed_id}
         local_acc_to_json = json.dumps(temp_dict)
         requests.put(self.accuracy_url, data=local_acc_to_json)
         
@@ -356,7 +356,7 @@ class Client:
             self.model.set_weights(global_weight)
         
 
-        self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=32, verbose=0)
+        self.model.fit(self.split_train_images, self.split_train_labels, epochs=5, batch_size=8, verbose=0)
         
         local_weight = self.model.get_weights()
         return local_weight
