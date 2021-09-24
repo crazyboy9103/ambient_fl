@@ -8,12 +8,9 @@ import json
 f = open("training_history.json", "r")
 json_history = json.load(f)
 
-f = open("training_history.json", "a")
-
-
 curr_id = 0
-if "last_id" in json_history.keys():
-    last_id = json_history["last_id"]
+if "last_id" in json_history:
+    last_id = int(json_history["last_id"])
     curr_id = last_id + 1
 else:
     json_history["last_id"] = curr_id
@@ -73,10 +70,10 @@ class FederatedServer:
             cls.current_count = 0
             cls.current_round += 1
             
-        
             json_history[curr_id][cls.current_round] = {'accuracy': cls.accuracy, 'local_weights': cls.local_weights, 'experiment':cls.experiment}
-
-
+            with open("training_history.json", "w") as f:
+                json.dump(json_history, f)
+    
             cls.accuracy = {}
             cls.local_weights = {}
             cls.local_num_data = {}
