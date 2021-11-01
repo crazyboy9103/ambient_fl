@@ -5,8 +5,10 @@ logger = logging.getLogger(__name__)
 import tensorflow as tf
 import json
 from app import numpy_encoder
+import os 
 
-f = open("training_history.json", "r")
+
+f = open(os.path.join("FL_Server", "training_history.json"), "r")
 json_history = json.load(f)
 
 curr_id = 0
@@ -18,7 +20,7 @@ else:
 
 json_history[curr_id] = {}
 
-print(f"The id for this training is {curr_id}. Use it to retrieve the recorded results") 
+print(f"The id for this training is {curr_id}. Use this id to retrieve the recorded results") 
 
 class FederatedServer:
     client_number = 6 # 전체 클라이언트 개수
@@ -73,7 +75,7 @@ class FederatedServer:
             
             json_history[curr_id][cls.current_round] = {'accuracy': cls.accuracy, 'local_weights': cls.local_weights, 'experiment':cls.experiment}
             
-            with open("training_history.json", "w") as f:
+            with open(os.path.join("FL_Server", "training_history.json"), "a") as f:
                 json.dump(json_history, f, cls=numpy_encoder.NumpyEncoder)
     
             cls.accuracy = {}
@@ -81,7 +83,9 @@ class FederatedServer:
             cls.local_num_data = {}
 
         if cls.current_round == cls.max_round:
+            f = open(os.path.join("FL_Server", "training_history.json"), "w")
             json.dump(json_history, f)
+            f.close()
             print(f"Training finished. Training information saved in 'training_history.json' with key {curr_id}")
             cls.reset()
             print("Server reset complete")
