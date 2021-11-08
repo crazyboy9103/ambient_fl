@@ -11,7 +11,7 @@ class Jetson:
     def __init__(self, min_port, max_port):
         assert int(min_port) < int(max_port), "max port must be >= min port"
         self.address = "147.47.200.209"
-        self.host_address = args.serverip
+        self.host_address = SERVER_IP
         self.username, self.password = "jetson", "jetson"
         self.ports = [i for i in range(int(min_port), int(max_port)+1)]        
         self.available = []
@@ -42,9 +42,12 @@ class Jetson:
         for i, port in tqdm(enumerate(self.available), desc="Sending commands"):
             self.cli.connect(hostname=self.address, port=port, username=self.username, password=self.password)
             command = f"python jetson_client.py --ip {self.host_address} --max {max_round} --delay {time_delay} --num {num_samples} --id {i} --exp {experiment}"
-            if i == 0:
+            if port == self.available[0]:
                 print(f"Sending command: {command}")
             stdin, stdout, stderr = self.cli.exec_command(command)
+            if port == self.available[0]:
+                lines = stdout.readlines()
+                print(''.join(lines)) 
         self.cli.close()
 
     def init_jetson_nanos(self):
@@ -76,6 +79,11 @@ if __name__ =="__main__":
     print(init, init.text)
     
     ###### SERVER ADDRESS ######
+    SERVER_IP = args.serverip
+    
+    ###### INITIALIZE JETSONs ######
+    init = requests.get(f"http://{SERVER_IP}/initialize/{CLIENT_NUM}/{EXPERIMENT}/{MAX_ROUND}")
+    print(init, init.text)
     jetson = Jetson(min_port = MIN_PORT, max_port=MAX_PORT)
     jetson.init_jetson_nanos()
     jetson.start_fed(experiment=args.exp, 
