@@ -1,4 +1,5 @@
-#Usage : python jetson_client.py --ip IP --p PORT
+# Usage : python jetson_client.py --ip IP --p PORT
+import matplotlib.pyplot as plt
 import argparse
 import json
 import os
@@ -8,11 +9,8 @@ from random import random
 import numpy as np
 import requests
 import tensorflow as tf
-import sys
-
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Quiet tensorflow error messages
-
 
 class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder 
     def default(self, o):
@@ -21,7 +19,7 @@ class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder
         return json.JSONEncoder.default(self, o)
 
 class Client:
-    def __init__(self, max_round, time_delay = 5, suppress=True, num_samples=600):
+    def __init__(self, max_round: int, time_delay = 5, suppress=True, num_samples=600, cliend_id = 0, experiment = 1):
         """
         @params: 
             experiment : Desired data split type (1~4)
@@ -41,26 +39,28 @@ class Client:
                    Downloads MNIST dataset and splits
                    Build model
         """
-        base_url = f"http://{IP}:{PORT}/" # Base Url that we communicate with
-        self.weight_url = base_url + "weight" # Url that we send or fetch weight parameters
-        self.round_url = base_url + "round" # Url that helps synchronization
-        self.id_url = base_url+"get_id" # Url from which we fetch the current client's id
-        self.total_num_data_url = base_url + "total_num" # Url from which we fetch the number of total data points (seen by N clients)
-        self.experiment_url = base_url + "experiment"
-        self.accuracy_url = base_url + "accuracy"
-        self.fed_id = self.request_fed_id() 
-        self.experiment = self.request_experiment() # Experiment to test the performance of federated learning regime 
         
-        self.time_delay = time_delay
+        '''
+        Urls
+        '''
         
-        self.suppress = suppress
+        base_url = f"http://{IP}:{PORT}/" # Base Url
+        self.put_weight_url = base_url + f"put_weight/{client_id}"
+        self.get_weight_url = base_url + "get_server_weight" # Url that we send or fetch weight parameters
+        self.round_url = base_url + "get_server_round" 
+        self.put_accuracy_url = base_url + f"put_accuracy/{client_id}"
+        
         '''
         Initial setup
         '''
+        self.experiment = experiment
+        self.client_id = client_id
+        self.time_delay = time_delay
+        self.suppress = suppress
         self.global_round = self.request_global_round()
         self.current_round = 0
-        
         self.max_round = max_round # Set the maximum number of rounds
+        
         '''
         Downloads MNIST dataset and prepares (train_x, train_y), (test_x, test_y)
         '''
@@ -108,6 +108,7 @@ class Client:
         @return: 
             None : saves the CNN model in self.model variable 
         """
+        #This model definition must be same in the server (Federated.py)
         self.model = tf.keras.models.Sequential([
             tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
             tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
@@ -154,8 +155,6 @@ class Client:
         if self.experiment == 1: #uniform data split
             self.local_data_num = num_samples
             
-
-
             for i in range(len(self.train_index_list)):
                 indices = self.train_index_list[i]
                 random_indices = np.random.choice(indices, size=num_samples//10)
@@ -175,9 +174,6 @@ class Client:
             for label in self.train_labels[random_indices]:
                 counts[label] += 1
             
-
-
-
         elif self.experiment == 3: # Randomly selected, differently sized dataset
             n = np.random.randint(1, num_samples)
             self.local_data_num = n
@@ -190,14 +186,11 @@ class Client:
             
             for label in self.train_labels[random_indices]:
                 counts[label] += 1
-            
-
-
-            
-
+  
         elif self.experiment == 4: #Skewed
-            skewed_numbers = np.random.choice([i for i in range(10)], np.random.randint(1, 10))
-            non_skewed_numbers = list(set([i for i in range(10)])-set(skewed_numbers))
+            temp = [i for i in range(10)]
+            skewed_numbers = np.random.choice(temp, np.random.randint(1, 10))
+            non_skewed_numbers = list(set(temp)-set(skewed_numbers))
             N = 0
             
             counts = [0 for _ in range(10)]
@@ -227,223 +220,130 @@ class Client:
                 
                 counts[i] += n
             
-            
-            
             self.local_data_num = N
         
-        else:
-            print("Pick from 1,2,3,4")
-            return 
-    
         self.split_train_images = np.array(self.split_train_images)
         self.split_train_labels = np.array(self.split_train_labels)
-        
         self.update_total_num_data(self.local_data_num)    
 
         
         
     def update_total_num_data(self, num_data):
         """
-        @params: 
-            num_data : the number of training images that the current client has
+        num_data : the number of training images that the current client has
         
-        @return: 
-            None : update the total number of training images that is stored in the server
+        update the total number of training images that is stored in the server
         """
-        temp = {'fed_id': self.fed_id, 'num_data': num_data}
-        local_num_data_to_json = json.dumps(temp)
+        local_num_data_to_json = json.dumps(num_data)
         requests.put(self.total_num_data_url, data=local_num_data_to_json)
-    
-    def request_fed_id(self):
-        """
-        @params: 
-            None
-        
-        @return: 
-            result : Automatically assigned client id that is given by the server
-        """
-        result = requests.get(self.id_url)
-        result = result.json()
-        return result
+
     
     def request_global_round(self):
         """
-        @params: 
-            None
-        
-        @return: 
-            result : Current global round that the server is in
+        result : Current global round that the server is in
         """
         result = requests.get(self.round_url)
         result = result.json()
         return result
     
-    def request_experiment(self):
-        result = requests.get(self.experiment_url)
-        result_data = result.json()
-        
-        if result_data is not None:
-            return int(result_data)
-        
-        else:
-            return 1
-    
     def request_global_weight(self):
         """
-        @params: 
-            None
-        
-        @return: 
-            global_weight : Up-to-date version of the model parameters
+        global_weight : Up-to-date version of the model parameters
         """
-        print("request global weight started")
         result = requests.get(self.weight_url)
         result_data = result.json()
-        print("result_data **", result_data, type(result_data)) 
+        
         global_weight = None
         if result_data is not None:
             global_weight = []
             for i in range(len(result_data)):
                 temp = np.array(result_data[i], dtype=np.float32)
                 global_weight.append(temp)
-        
-        print("request global weight finished")
-        
+            
         return global_weight
 
     def upload_local_weight(self, local_weight=[]):
-        print("upload local weight started")
         """
-        @params: 
-            local_weight : the local weight that current client has converged to
+        local_weight : the local weight that current client has converged to
         
-        @return: 
-            None : Add current client's weights to the server (Server accumulates these from multiple clients and computes the global weight)
+        Add current client's weights to the server (Server accumulates these from multiple clients and computes the global weight)
         """
-        import time
-        if isinstance(local_weight, (np.ndarray, np.generic)):
-            print("shape ", local_weight.shape)
-        else:
-            print("shape ", len(local_weight), len(local_weight[0]))
-        
-        start=time.time()
-        
         local_weight_to_json = json.dumps(local_weight, cls=NumpyEncoder)
-        end = time.time()
-        print("json NumpyEncoder took", end-start)
-        start = end
-        local_weight = {"fed_id":self.fed_id, "weights": local_weight_to_json}
-        local_weight = json.dumps(local_weight) 
-        print("local_weight dumps complete. Size is ",sys.getsizeof(local_weight))
-        end = time.time()
-        print("dumps took", end-start)
-        start = end
-        requests.put(self.weight_url, data=local_weight)
-        end = time.time()
-        print("upload local weight took", end-start)
-    def upload_local_accuracy(self, accuracy):
+        requests.put(self.put_weight_url, data=local_weight_to_json)
         
-        print("upload local acc started")
-        #first index of accuracy is accuracy (0 is loss) 
-        temp_dict = {'accuracy':accuracy, 'fed_id':self.fed_id}
-        local_acc_to_json = json.dumps(temp_dict)
-        requests.put(self.accuracy_url, data=local_acc_to_json) 
-        print("upload local acc finished")
+    def upload_local_accuracy(self, accuracy):
+        temp_url = f"{put_accuracy_url}/{accuracy}"
+        requests.get(temp_url)
+        
     def validation(self, local_weight=[]):
         """
-        @params: 
-            local_weight : the current client's weights
+        local_weight : the current client's weights
         
-        @return: 
-            acc : test accuracy of the current client's model
+        acc : test accuracy of the current client's model
         """
-
-        print("validation started")
         if local_weight is not None:
             self.model.set_weights(local_weight)
             acc = self.model.evaluate(self.test_images, self.test_labels, verbose=0 if self.suppress else 1)
+            self.upload_local_accuracy(acc)
             e = {out: acc[i] for i, out in enumerate(self.model.metrics_names)}
+
             return acc
         
-        print("validation finished")
     def train_local_model(self):
         """
-        @params: 
-            None
-        
-        @return: 
-            local_weight : local weight of the current client after training
+        local_weight : local weight of the current client after training
         """
-        print("train started")
         global_weight = self.request_global_weight()
         if global_weight != None:
             global_weight = np.array(global_weight)
             self.model.set_weights(global_weight)
         
-
-        self.model.fit(self.split_train_images, self.split_train_labels, epochs=5, batch_size=8, verbose=0)
-        
+        self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=16, verbose=0)
         local_weight = self.model.get_weights()
-        print("train finished")
         return local_weight
     
     def task(self):
         """
-        @params: 
-            None
-        
-        @return: 
-            None : Delayed execution of Federated Learning task
-                  1. Check the client's current round
-                      1.1. If the current round is 
+        Federated learning task
+        1. If the current round is larger than the max round that we set, finish
+        2. If the global round = current client's round, the client needs update
+        3. Otherwise, we need to wait until other clients to finish
         """
-        print(f"ID {self.fed_id} task") 
+        
+        #this is for executing on multiple devices
         self.global_round = self.request_global_round()
 
         if self.current_round >= self.max_round:
             print(f"Client {self.fed_id} finished")
-            #sys.exit()
             return 
 
-
         if self.global_round == self.current_round: #need update 
+            global_weight = self.request_global_weight()
             local_weight = self.train_local_model()
-
             acc = self.validation(local_weight)
-
             self.upload_local_weight(local_weight)
-            self.upload_local_accuracy(acc[1])
             self.current_round += 1
-            
+            time.sleep(self.time_delay)
             return self.task()
-            #threading.Timer(self.time_delay, self.task).start()
-            #time.sleep(self.time_delay)
-            
-            #return self.task()
 
         else: #need to wait until other clients finish
-            #time.sleep(self.time_delay * 2)
-            #return self.task()
-            threading.Timer(self.time_delay, self.task).start()
-
+            time.sleep(self.time_delay * 2)
+            return self.task()
         
 if __name__ == "__main__":
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
-    
     parser = argparse.ArgumentParser(description="Usage --ip {ip} --p {port} --max {max round} --delay {time delay} --num {num samples}")
-    parser.add_argument("--ip", type=str, help="base ip address", default="147.47.200.178")
-    parser.add_argument("--p", type=str, help="designated port", default="9103")
+    parser.add_argument("--ip", type=str, help="base ip address", default="127.0.0.1")
     parser.add_argument("--max", type=int, help="max round", default=5)
     parser.add_argument("--delay", type=int, help="time delay", default=5)
     parser.add_argument("--num", type=int, help="num samples", default=600)
-    
+    parser.add_argument("--id", type=int, help="client id", default=0)
+    parser.add_argumetn("--exp", type=int, help="experiment number", default=1) #2,3,4
     args = parser.parse_args()
-    IP = args.ip
-    PORT = args.p
-    max_round = args.max
-    time_delay = args.delay
-    num_samples = args.num
-    
-    client = Client(max_round = max_round, time_delay = time_delay, num_samples = num_samples)
+
+    client = Client(max_round = args.max, 
+                    time_delay = args.delay, 
+                    num_samples = args.num,  
+                    suppress=True, 
+                    cliend_id = args.id, 
+                    experiment = args.exp)
     client.task()

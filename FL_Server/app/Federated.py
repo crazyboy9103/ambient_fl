@@ -6,40 +6,22 @@ import tensorflow as tf
 import json
 from app import numpy_encoder
 import os 
-
-
-f = open(os.path.join("FL_Server", "training_history.json"), "r")
-json_history = json.load(f)
-
-curr_id = 0
-if "last_id" in json_history:
-    last_id = int(json_history["last_id"])
-    curr_id = last_id + 1
-else:
-    json_history["last_id"] = curr_id
-
-json_history[curr_id] = {}
-
-print(f"The id for this training is {curr_id}. Use this id to retrieve the recorded results") 
-
+    
 class FederatedServer:
-    client_number = 6 # 전체 클라이언트 개수
-    global_weight = None # 현재 서버에 저장되어있는 weight
+    client_number = 5 # 전체 클라이언트 개수
+    server_weight = None # 현재 서버에 저장되어있는 weight
     local_weights = {} # 각 클라이언트에서 받아온 parameter들의 리스트
     
     experiment = 1 #Uniform by default
     
-    current_count = 0 # Task가 끝난 클라이언트의 개수
-    current_round = 0 # 현재 라운드
-    
-    
-    fed_id = 0 # 각 클라이언트를 구별하기 위한 아이디
+    done_clients = 0 # Task가 끝난 클라이언트의 개수
+    server_round = 0 # 현재 라운드
     max_round = 5 #
-    total_num_data = 0 # 모든 클라이언트가 본 전체 데이터 개수
+    total_num_data = 0 # 전체 데이터 개수
     
-    accuracy = {} # for each client 
-    num_data = {} # for each client
-    accuracies = {} # for all clients, for all rounds
+    num_data = {} 
+    client_model_accuracy = {}
+    server_model_accuracy = []
     
     model = tf.keras.models.Sequential([
                     tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
@@ -56,66 +38,56 @@ class FederatedServer:
     @classmethod
     def __init__(cls):
         pass
-
-    @classmethod
-    def update(cls, fed_id, local_weight):
-        weight_list = []
-      
-        for i in range(len(local_weight)): 
-            temp = np.array(local_weight[i])
-            weight_list.append(temp)
-        
-        cls.local_weights[fed_id] = np.array(weight_list)
-        cls.current_count += 1 # increment current count
-
-        if cls.current_count == cls.client_number: # if current count = the max count
-            cls.avg() # fed avg 
-            cls.current_count = 0
-            cls.current_round += 1
-            
-            json_history[curr_id][cls.current_round] = {'accuracy': cls.accuracy, 'local_weights': cls.local_weights, 'experiment':cls.experiment}
-            
-            with open(os.path.join("FL_Server", "training_history.json"), "a") as f:
-                json.dump(json_history, f, cls=numpy_encoder.NumpyEncoder)
     
-            cls.accuracy = {}
-            cls.local_weights = {}
-            cls.local_num_data = {}
-
-        if cls.current_round == cls.max_round:
-            f = open(os.path.join("FL_Server", "training_history.json"), "w")
-            json.dump(json_history, f)
-            f.close()
-            print(f"Training finished. Training information saved in 'training_history.json' with key {curr_id}")
+    @classmethod
+    def initialize(cls, client_num, experiment, max_round):
+        cls.client_number = client_num
+        cls.experiment = experiment
+        cls.max_round = max_round
+        cls.client_model_accuracy = {i:[] for i in range(client_num)}
+        cls.reset() # reset the variables when initialized
+        return "Initialized server"
+    
+    @classmethod
+    def update_num_data(cls, client_id, number):
+        cls.total_num_data += number
+        cls.num_data[client_id] = number
+        return "Number of data updated"
+    
+    @classmethod
+    def update(cls, client_id, local_weight):
+        local_weight = np.array([map(lambda weight: np.array(weight), local_weight)])
+        cls.evaluateClientModel(client_id, local_weight) 
+        
+        cls.done_clients += 1 # increment current count
+        
+        if cls.done_clients == cls.client_number: 
+            cls.FedAvg() # fed avg
+            cls.evaluateServerModel()
+            cls.next_round()
+            
+        if cls.server_round == cls.max_round: # federated learning finished
+            cls.save() # save all history into json file 
             cls.reset()
-            print("Server reset complete")
-
 
     @classmethod
-    def avg(cls):
-        # averages the parameters
-        # the weights are already weighted at the client side
-        # so simply add weights 
-        N = cls.total_num_data
-
-        temp_weight = np.zeros_like(cls.local_weights[0], dtype=np.float32)
-
-        #for i in range(len(temp_weight)):
-        #    temp_weight[i] = temp_weight[i], dtype=np.float32)
-
-        for fed_id, local_weights in cls.local_weights.items():
-            n = cls.num_data[fed_id]
-            local_weights = np.array(local_weights, dtype=np.float32)
-            weighted_weights = (n/N) * local_weights
-            temp_weight = temp_weight + weighted_weights
+    def FedAvg(cls):
+        weight = np.zeros_like(cls.local_weights[0], dtype=np.float32) # local weight와 같은 shape를 가지는 numpy array를 만들기
+        for client_id, client_weight in cls.local_weights.items():
+            client_num_data = cls.num_data[client_id]
+            client_weight = np.array(client_weight, dtype=np.float32)
+            weighted_weight = (client_num_data/cls.total_num_data) * client_weight
+            weight += weighted_weight
             
-        cls.global_weight = temp_weight
-        cls.model.set_weights(cls.global_weight)
+        cls.set_server_weight(weight)
+        cls.model.set_weights(cls.server_weight)
         
-        mnist = tf.keras.datasets.mnist
-
+    @classmethod
+    def evaluateClientModel(cls, client_id, weight):
+        cls.model.set_weights(cls.weight) # change to local weight
+        
+        mnist = tf.keras.datasets.mnist 
         (_, _), (test_images, test_labels) = mnist.load_data()
-
         n = len(test_images)
         indices = np.random.choice([i for i in range(n)], n//10)
         
@@ -124,46 +96,68 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
         
         acc = cls.model.evaluate(test_images, test_labels)
+        cls.client_model_accuracy[client_id].append(acc[1])
         
-        cls.accuracy[cls.client_number] = acc[1] # last id + 1 for the federated learning model accuarcy 
-    
+        cls.model.set_weights(cls.server_weight) # revert to server weight 
+        
+    @classmethod
+    def evaluateServerModel(cls):
+        mnist = tf.keras.datasets.mnist 
+        (_, _), (test_images, test_labels) = mnist.load_data()
+        n = len(test_images)
+        indices = np.random.choice([i for i in range(n)], n//10)
+        
+        test_images = test_images[indices]
+        test_images = test_images / 255
+        test_images = test_images.reshape(-1,28, 28, 1)
+        
+        acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
+        cls.server_model_accuracy.append(acc) # each index corresponds to a round
+        
+    @classmethod
+    def next_round(cls):
+        cls.done_clients = 0 # reset current
+        cls.server_round += 1 # proceed
+        cls.total_num_data = 0 # 전체 데이터 개수 
+        cls. num_data = {} 
+        
+    @classmethod
+    def save(cls):
+        result = {"clients acc" : cls.client_model_accuracy, 
+                  "server acc" : cls.server_model_accuarcy}
+        import json
+        from time import gmtime, strftime
+        timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
+        with open(f'{timestamp}.json', 'w') as f:
+            json.dump(result, f)
+           
+        return f"Json file saved {timestamp}"
+
     @classmethod
     def reset(cls):
-        #json.dump(json_history, f)
-        cls.accuracy = {}
-        cls.global_weight = None
+        cls.client_model_accuracy = {}
+        cls.server_model_accuracy = []
+        cls.server_weight = None
         cls.local_weights = {}
-        cls.num_data = {}
-        cls.current_count = 0
-        cls.current_round = 0
-        cls.experiment = 1
-        cls.fed_id = 0
+        cls.done_clients = 0
+        cls.server_round = 0
         cls.num_data = {}
         cls.total_num_data = 0
-        #tentative
-        #tf.keras.backend.clear_session()
-
-        cls.model = tf.keras.models.Sequential([
-                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)), 
-                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'), 
-                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)), 
-                    tf.keras.layers.Dropout(0.25), 
-                    tf.keras.layers.Flatten(), 
-                    tf.keras.layers.Dense(128, activation='relu'), 
-                    tf.keras.layers.Dropout(0.5), 
-                    tf.keras.layers.Dense(10, activation='softmax')
-            ])
-        cls.model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
-
-       
+    
     @classmethod
-    def get_avg(cls):
-        return cls.global_weight
+    def set_server_weight(cls, weight):
+        if isinstance(weight, list):
+            weight = np.array(weight)
+        cls.server_weight = weight
+        
+    @classmethod
+    def get_server_weight(cls):
+        return cls.server_weight
 
     @classmethod
-    def get_current_count(cls):
-        return cls.current_count
+    def get_done_clients(cls):
+        return cls.done_clients
 
     @classmethod
-    def get_current_round(cls):
-        return cls.current_round
+    def get_server_round(cls):
+        return cls.server_round

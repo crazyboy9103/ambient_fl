@@ -3,21 +3,15 @@ from django.urls import path
 from app import views
 
 urlpatterns = [
-    path('', views.index),
     path('index', views.index),
     path('admin/', admin.site.urls),
-    path('round/', views.round),
-    path('round', views.round),
-    path('client_num', views.client_num),
-    path('client_num/', views.client_num),
-    path('weight', views.weight),
-    path('weight/', views.weight),
     path('reset/', views.reset),
-    path('get_id', views.get_id),
-    path('total_num', views.total_num_data),
-    path('total_num/', views.total_num_data),
-    path('experiment', views.experiment),
-    path('experiment/', views.experiment),
-    path('accuracy', views.accuracy),
-    path('accuracy/', views.accuracy)
+    path('initialize/<int:client_num>/<int:experiment>/<int:max_round>/', views.initialize),
+    path('get_server_round', views.get_server_round),
+    path('get_server_weight', views.get_server_weight),
+    path('put_weight/<int:client_id>/', views.put_weight),
+    path("update_num_data/<int:client_id>/<int:number>/", views.update_num_data),
+    path('get_experiment', views.get_experiment),
+    path('set_experiment/<int:experiment>/', views.set_experiment),
+    path('put_accuracy/<int:client_id>/', views.put_accuracy) , 
  ]
