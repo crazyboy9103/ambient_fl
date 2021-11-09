@@ -31,12 +31,6 @@ def set_experiment(request, experiment):
     return HttpResponse(f"Experiment set to {FederatedServer.experiment}", status.HTTP_200_OK)
 
 @api_view(['PUT'])
-def put_accuracy(request, client_id):
-    json_data = JSONParser().parse(request)
-    FederatedServer.accuracy[client_id] = float(json_data['accuracy'])
-    return HttpResponse(f"Accuracy for client {client_id} is updated", status.HTTP_200_OK)
-
-@api_view(['PUT'])
 def set_client_num(request, client_num):
     FederatedServer.client_number = client_num
     return HttpResponse(f"Total client number is set to {client_num}", status.HTTP_200_OK)
@@ -49,14 +43,13 @@ def get_server_weight(request):
 
 @api_view(['PUT'])
 def put_weight(request, client_id):
-    json_data = JSONParser().parse(request)
-    weights = list(json_data['weights'])
-    FederatedServer.update(client_id, weights)
+    weight = JSONParser().parse(request)
+    FederatedServer.update(client_id, weight)
     return HttpResponse(f"Weight of client {client_id} is updated", status.HTTP_200_OK)
 
-@api_view(['PUT'])
+@api_view(['GET'])
 def update_num_data(request, client_id, num_data):
-    return HttpRespose(FederatedServer.update_num_data(client_id, num_data), status.HTTP_200_OK)
+    return HttpResponse(FederatedServer.update_num_data(client_id, num_data), status.HTTP_200_OK)
 
 @api_view(['GET'])
 def get_num_data(request):

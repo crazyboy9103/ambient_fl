@@ -84,10 +84,7 @@ class Client:
         
     def prepare_images(self):
         """
-        @params: 
-            model : 'ann' or 'cnn'. They need slightly different format for the input. For cnn, we add additional dimension for channel
-        
-        @return: 
+        return: 
             None : Prepares MNIST images in the required format for each model
             
         """

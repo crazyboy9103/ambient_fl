@@ -49,16 +49,16 @@ class FederatedServer:
         return "Initialized server"
     
     @classmethod
-    def update_num_data(cls, client_id, number):
-        cls.total_num_data += number
-        cls.num_data[client_id] = number
-        return "Number of data updated"
+    def update_num_data(cls, client_id, num_data):
+        cls.total_num_data += num_data
+        cls.num_data[client_id] = num_data
+        return f"Number of data for {client_id} updated"
     
     @classmethod
     def update(cls, client_id, local_weight):
-        local_weight = np.array([map(lambda weight: np.array(weight), local_weight)])
+        local_weight = list(map(lambda weight: np.array(weight), local_weight))
+        cls.local_weights[client_id] = local_weight
         cls.evaluateClientModel(client_id, local_weight) 
-        
         cls.done_clients += 1 # increment current count
         
         if cls.done_clients == cls.client_number: 
@@ -78,13 +78,13 @@ class FederatedServer:
             client_weight = np.array(client_weight, dtype=np.float32)
             weighted_weight = (client_num_data/cls.total_num_data) * client_weight
             weight += weighted_weight
-            
+        
         cls.set_server_weight(weight)
-        cls.model.set_weights(cls.server_weight)
+        cls.evaluateServerModel()
         
     @classmethod
     def evaluateClientModel(cls, client_id, weight):
-        cls.model.set_weights(cls.weight) # change to local weight
+        cls.model.set_weights(cls.local_weights[client_id]) # change to local weight
         
         mnist = tf.keras.datasets.mnist 
         (_, _), (test_images, test_labels) = mnist.load_data()
@@ -92,6 +92,7 @@ class FederatedServer:
         indices = np.random.choice([i for i in range(n)], n//10)
         
         test_images = test_images[indices]
+        test_labels = test_labels[indices]
         test_images = test_images / 255
         test_images = test_images.reshape(-1,28, 28, 1)
         
