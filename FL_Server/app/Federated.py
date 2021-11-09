@@ -56,7 +56,7 @@ class FederatedServer:
     
     @classmethod
     def update(cls, client_id, local_weight):
-        local_weight = list(map(lambda weight: np.array(weight), local_weight))
+        local_weight = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
         cls.local_weights[client_id] = local_weight
         cls.evaluateClientModel(client_id, local_weight) 
         cls.done_clients += 1 # increment current count
@@ -72,11 +72,16 @@ class FederatedServer:
 
     @classmethod
     def FedAvg(cls):
-        weight = np.zeros_like(cls.local_weights[0], dtype=np.float32) # local weight와 같은 shape를 가지는 numpy array를 만들기
+        weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[0])) # local weight와 같은 shape를 가지는 list<np.array> 를 만들기
+        
         for client_id, client_weight in cls.local_weights.items():
             client_num_data = cls.num_data[client_id]
-            weighted_weight = (client_num_data/cls.total_num_data) * client_weight
-            weight += weighted_weight
+
+            for i in range(len(weight)):
+                weighted_weight = client_weight[i] * (client_num_data/cls.total_num_data)
+                weight[i] += weighted_weight
+            
+        weight = weight.tolist()
         
         cls.set_server_weight(weight)
         cls.evaluateServerModel()
@@ -151,8 +156,6 @@ class FederatedServer:
     
     @classmethod
     def set_server_weight(cls, weight):
-        if isinstance(weight, list):
-            weight = np.array(weight)
         cls.server_weight = weight
         
     @classmethod
