@@ -44,7 +44,7 @@ class FederatedServer:
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
-        cls.client_model_accuracy = {i:[] for i in range(client_num)}
+        cls.client_model_accuracy = {}
         cls.reset() # reset the variables when initialized
         return "Initialized server"
     
@@ -97,9 +97,14 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
         
         acc = cls.model.evaluate(test_images, test_labels)
+        
+        if client_id not in cls.client_model_accuracy:
+            cls.client_model_accuracy[client_id] = []
+       
         cls.client_model_accuracy[client_id].append(acc[1])
         
-        cls.model.set_weights(cls.server_weight) # revert to server weight 
+        if cls.server_weight != None:
+            cls.model.set_weights(cls.server_weight) # revert to server weight 
         
     @classmethod
     def evaluateServerModel(cls):
@@ -120,7 +125,7 @@ class FederatedServer:
         cls.done_clients = 0 # reset current
         cls.server_round += 1 # proceed
         cls.total_num_data = 0 # 전체 데이터 개수 
-        cls. num_data = {} 
+        cls.num_data = {} 
         
     @classmethod
     def save(cls):
