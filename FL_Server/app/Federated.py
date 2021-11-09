@@ -75,7 +75,6 @@ class FederatedServer:
         weight = np.zeros_like(cls.local_weights[0], dtype=np.float32) # local weight와 같은 shape를 가지는 numpy array를 만들기
         for client_id, client_weight in cls.local_weights.items():
             client_num_data = cls.num_data[client_id]
-            client_weight = np.array(client_weight, dtype=np.float32)
             weighted_weight = (client_num_data/cls.total_num_data) * client_weight
             weight += weighted_weight
         
