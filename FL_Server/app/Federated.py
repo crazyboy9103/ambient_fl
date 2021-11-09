@@ -80,8 +80,6 @@ class FederatedServer:
             for i in range(len(weight)):
                 weighted_weight = client_weight[i] * (client_num_data/cls.total_num_data)
                 weight[i] += weighted_weight
-            
-        weight = weight.tolist()
         
         cls.set_server_weight(weight)
         cls.evaluateServerModel()
@@ -118,6 +116,7 @@ class FederatedServer:
         indices = np.random.choice([i for i in range(n)], n//10)
         
         test_images = test_images[indices]
+        test_labels = test_labels[indices]
         test_images = test_images / 255
         test_images = test_images.reshape(-1,28, 28, 1)
         
