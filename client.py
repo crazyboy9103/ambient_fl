@@ -279,3 +279,15 @@ class Client:
             print("need wait")
             time.sleep(self.time_delay)
             return self.task()
+        
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--round", '-r', type=int, help="max round")
+    parser.add_argument("--num", '-n', type=int, help="number of samples (overridden if exp == 3, 4")
+    parser.add_argument("--id", type=int, help="client id")
+    parser.add_argument("--exp", type=int, help="experiment number")
+    args = parser.parse_args()
+    
+    client = Client(args.round, 5, True, args.num, args.id, args.exp)
+    client.task()
+    
