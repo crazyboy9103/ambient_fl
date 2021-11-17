@@ -9,3 +9,4 @@ Keras
 scikit-learn
 tensorflow
 paramiko
+matplotlib
