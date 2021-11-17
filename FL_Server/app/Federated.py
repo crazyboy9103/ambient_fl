@@ -34,10 +34,6 @@ class FederatedServer:
     model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
 
     @classmethod
-    def __init__(cls):
-        pass
-    
-    @classmethod
     def initialize(cls, client_num, experiment, max_round):
         cls.client_number = client_num
         cls.experiment = experiment
@@ -132,7 +128,8 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
         
         acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
-        cls.server_model_accuracy.append(acc) # each index corresponds to a round
+        # each index corresponds to a round
+        cls.server_model_accuracy.append(acc) 
         
     @classmethod
     def next_round(cls):
