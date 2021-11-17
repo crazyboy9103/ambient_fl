@@ -58,8 +58,7 @@ class FederatedServer:
         if cls.done_clients == cls.client_number: 
             cls.FedAvg() # fed avg
             cls.evaluateServerModel()
-            cls.next_round()
-            cls.save() 
+            cls.next_round() 
             
         if cls.server_round == cls.max_round: # federated learning finished
             cls.save() # save all history into json file 
@@ -140,15 +139,18 @@ class FederatedServer:
         
     @classmethod
     def save(cls):
-        result = {"clients acc" : cls.client_model_accuracy, 
+        result = {"client number": cls.client_number,
+                  "experiment":cls.experiment,
+                  "max round": cls.max_round,
+                  "clients acc" : cls.client_model_accuracy, 
                   "server acc" : cls.server_model_accuracy}
         import json
         from time import gmtime, strftime
         timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
-        with open(f'{timestamp}.json', 'w') as f:
+        with open("../Logs/"+timestamp+".json", 'w') as f:
             json.dump(result, f)
            
-        return f"Json file saved {timestamp}"
+        print("Json file saved as ../Logs/", timestamp+".json")
 
     @classmethod
     def reset(cls):
