@@ -32,7 +32,7 @@ class FederatedServer:
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
     model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
-
+   
     @classmethod
     def __init__(cls):
         pass
@@ -93,7 +93,7 @@ class FederatedServer:
                 weight[i] += weighted_weight
         ### TODO ###
         cls.set_server_weight(weight)
-        cls.evaluateServerModel()
+        #cls.evaluateServerModel()
         
     @classmethod
     def evaluateClientModel(cls, client_id, weight):
@@ -144,7 +144,7 @@ class FederatedServer:
     @classmethod
     def save(cls):
         result = {"clients acc" : cls.client_model_accuracy, 
-                  "server acc" : cls.server_model_accuarcy}
+                  "server acc" : cls.server_model_accuracy}
         import json
         from time import gmtime, strftime
         timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
