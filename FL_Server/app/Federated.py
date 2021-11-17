@@ -1,7 +1,5 @@
 import copy
 import numpy as np
-import logging
-logger = logging.getLogger(__name__)
 import tensorflow as tf
 import json
 from app import numpy_encoder
@@ -65,6 +63,7 @@ class FederatedServer:
             cls.FedAvg() # fed avg
             cls.evaluateServerModel()
             cls.next_round()
+            cls.save() 
             
         if cls.server_round == cls.max_round: # federated learning finished
             cls.save() # save all history into json file 
@@ -72,7 +71,19 @@ class FederatedServer:
 
     @classmethod
     def FedAvg(cls):
-        weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[0])) # local weight와 같은 shape를 가지는 list<np.array> 를 만들기
+        """
+        cls.local_weights contains key:value = client id:weight array
+        
+        - At this point, we do not know the shape of the weight array, so we use np.zeros_like function to make
+        a temporary array filled with zeros, then accumulate the weights
+        
+        - The resulting weight must be a list of weights of type np.array
+        
+        - Fill in the blanks to implement FedAvg algorithm (just simple averaging)
+        """ 
+        ### TODO ###
+        weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[0])) 
+        # local weight와 같은 shape를 가지는 list<np.array> 를 만들기
         
         for client_id, client_weight in cls.local_weights.items():
             client_num_data = cls.num_data[client_id]
@@ -80,7 +91,7 @@ class FederatedServer:
             for i in range(len(weight)):
                 weighted_weight = client_weight[i] * (client_num_data/cls.total_num_data)
                 weight[i] += weighted_weight
-        
+        ### TODO ###
         cls.set_server_weight(weight)
         cls.evaluateServerModel()
         
