@@ -4,7 +4,7 @@ import tensorflow as tf
 import json
 from app import numpy_encoder
 import os
-
+import random
 class FederatedServer:
     client_number = 5 # 전체 클라이언트 개수
     server_weight = None # 현재 서버에 저장되어있는 weight
@@ -50,9 +50,15 @@ class FederatedServer:
 
     @classmethod
     def update(cls, client_id, local_weight):
-        local_weight = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
-        cls.local_weights[client_id] = local_weight
-        cls.evaluateClientModel(client_id, local_weight)
+        if not local_weight:
+            print("Client id", str(client_id), " weight error")
+            cls.client_model_accuracy[client_id] = 0
+
+        else:
+            local_weight = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
+            cls.local_weights[client_id] = local_weight
+            cls.evaluateClientModel(client_id, local_weight)
+        
         cls.done_clients += 1 # increment current count
 
         if cls.done_clients == cls.client_number:
@@ -79,7 +85,7 @@ class FederatedServer:
         - 전체 데이터 수는 cls.total_num_data에 담겨 있음
         """
         ### TODO ###
-        weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[0]))
+        weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[random.choice(list(cls.local_weights))]))
 
         for client_id, client_weight in cls.local_weights.items():
             client_num_data = cls.num_data[client_id]
