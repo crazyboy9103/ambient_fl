@@ -287,6 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--num", '-n', type=int, help="number of samples (overridden if exp == 3, 4")
     parser.add_argument("--id", type=int, help="client id")
     parser.add_argument("--exp", type=int, help="experiment number")
+    parser.add_argument("--delay", type=int, help="time delay")
     args = parser.parse_args()
     
     client = Client(args.round, 5, True, args.num, args.id, args.exp)
