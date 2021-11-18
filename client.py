@@ -6,7 +6,7 @@ from random import random
 import numpy as np
 import requests
 import tensorflow as tf
-
+import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Quiet tensorflow error messages
 
 class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder 
