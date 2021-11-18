@@ -241,7 +241,7 @@ class Client:
         """
         global_weight = self.request_global_weight()
         if global_weight != None:
-            global_weight = np.array(global_weight)
+            global_weight = list(map(lambda weight: np.array(weight), global_weight))
             self.model.set_weights(global_weight)
             
         
