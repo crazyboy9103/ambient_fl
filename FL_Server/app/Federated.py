@@ -152,9 +152,9 @@ class FederatedServer:
         with open("../Logs/"+timestamp+".json", 'w') as f:
             json.dump(result, f)
 
-        print("################################################")
+        print("#################################################")
         print("#Json file saved as ../Logs/"+timestamp+".json#")
-        print("################################################")
+        print("#################################################")
 
 
     @classmethod
