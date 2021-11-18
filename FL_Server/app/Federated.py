@@ -145,16 +145,14 @@ class FederatedServer:
                   "clients acc" : cls.client_model_accuracy,
                   "server acc" : cls.server_model_accuracy, 
                  "final weight": list(weight.tolist() for weight in cls.server_weight)}
-
         import json
         from time import gmtime, strftime
         timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
         with open("../Logs/"+timestamp+".json", 'w') as f:
             json.dump(result, f)
-
-        print("#################################################")
-        print("#Json file saved as ../Logs/"+timestamp+".json#")
-        print("#################################################")
+        print("################################################")
+        print("#Json file saved as ../Logs/", timestamp+".json#")
+        print("################################################")
 
 
     @classmethod
