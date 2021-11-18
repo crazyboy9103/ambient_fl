@@ -16,7 +16,7 @@ class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder
         return json.JSONEncoder.default(self, o)
 
 class Client:
-    def __init__(self, max_round: int, time_delay = 5, suppress=True, num_samples=600, client_id = 0, experiment = 1):
+    def __init__(self, max_round, time_delay = 5, suppress=True, num_samples=600, client_id = 0, experiment = 1):
         '''
         Urls
         '''
@@ -235,6 +235,7 @@ class Client:
         requests.put(self.put_weight_url, data=local_weight_to_json)
         
     def train_local_model(self):
+        print("train started")
         """
         local_weight : local weight of the current client after training
         """
@@ -262,7 +263,7 @@ class Client:
         print("global round", self.global_round)
         print("current round", self.current_round)
         if self.current_round >= self.max_round:
-            print(f"Client {self.client_id} finished")
+            print("Client", self.client_id, "finished")
             return 
 
         if self.global_round == self.current_round: #need update 
