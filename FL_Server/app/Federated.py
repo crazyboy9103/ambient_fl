@@ -154,6 +154,7 @@ class FederatedServer:
         print("#Json file saved as ../Logs/", timestamp+".json#")
         print("################################################")
 
+
     @classmethod
     def reset(cls):
         cls.client_model_accuracy = {}
