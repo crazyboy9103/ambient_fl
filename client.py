@@ -9,12 +9,6 @@ import tensorflow as tf
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Quiet tensorflow error messages
 
-#class NumpyEncoder(json.JSONEncoder): # inherits JSONEncoder 
-#    def default(self, o):
-#        if isinstance(o, np.ndarray):
-#            return o.tolist()
-#        return json.JSONEncoder.default(self, o)
-
 class Client:
     def __init__(self, max_round, time_delay = 5, suppress=True, num_samples=600, client_id = 0, experiment = 1):
         '''
