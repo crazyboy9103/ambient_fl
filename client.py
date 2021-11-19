@@ -292,6 +292,6 @@ if __name__ == "__main__":
     parser.add_argument("--delay", type=int, help="time delay")
     args = parser.parse_args()
     
-    client = Client(args.round, 5, True, args.num, args.id, args.exp)
+    client = Client(args.round, args.delay, True, args.num, args.id, args.exp)
     client.task()
     
