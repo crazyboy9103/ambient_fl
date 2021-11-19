@@ -265,10 +265,10 @@ class Client:
         if self.global_round == self.current_round: #need update 
             print("Client "+ str(self.client_id) + "needs update")
             self.split_train_images, self.split_train_labels = self.data_split(num_samples=self.local_data_num)
-            self.update_total_num_data(self.local_data_num)        
+            self.update_total_num_data(self.local_data_num) 
+            self.current_round += 1
             local_weight = self.train_local_model()
             self.upload_local_weight(local_weight)
-            self.current_round += 1
             time.sleep(self.time_delay)
             return self.task()
 
