@@ -44,9 +44,11 @@ def get_server_weight(request):
 
 @api_view(['PUT'])
 def put_weight(request, client_id):
-    weight = JSONParser().parse(request)
-    #weight = json.JSONDecoder().decode(weight) 
-    FederatedServer.update(client_id, weight)
+    try:
+        weight = JSONParser().parse(request)
+        FederatedServer.update(client_id, weight)
+    except:
+        FederatedServer.update(client_id, None)
     return HttpResponse(f"Weight of client {client_id} is updated", status.HTTP_200_OK)
 
 @api_view(['GET'])
