@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from app import numpy_encoder
 from app.Federated import FederatedServer
+import json
 
 @api_view(['GET'])
 def index(request):
@@ -44,6 +45,7 @@ def get_server_weight(request):
 @api_view(['PUT'])
 def put_weight(request, client_id):
     weight = JSONParser().parse(request)
+    #weight = json.JSONDecoder().decode(weight) 
     FederatedServer.update(client_id, weight)
     return HttpResponse(f"Weight of client {client_id} is updated", status.HTTP_200_OK)
 
