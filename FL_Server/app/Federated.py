@@ -15,7 +15,6 @@ class FederatedServer:
     done_clients = 0 # Task가 끝난 클라이언트의 개수
     server_round = 0 # 현재 라운드
     max_round = 5 #
-    total_num_data = 0 # 전체 데이터 개수
 
     num_data = {}
     client_model_accuracy = {}
@@ -32,32 +31,35 @@ class FederatedServer:
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
     model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
-
+    
     @classmethod
     def initialize(cls, client_num, experiment, max_round):
+        cls.reset() # reset the variables when initialized
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
-        cls.client_model_accuracy = {}
-        cls.reset() # reset the variables when initialized
+        print(f"Initialized server with {client_num} clients, experiment  {experiment}, max round {max_round}")
         return "Initialized server"
-
     @classmethod
     def update_num_data(cls, client_id, num_data):
-        cls.total_num_data += num_data
         cls.num_data[client_id] = num_data
-        return f"Number of data for {client_id} updated"
+        print(f"Number of data for {client_id} updated")
 
     @classmethod
     def update(cls, client_id, local_weight):
         if not local_weight:
             print("Client id", str(client_id), " weight error")
-            cls.client_model_accuracy[client_id] = 0
+            if client_id in cls.client_model_accuracy:
+                cls.client_model_accuracy[client_id].append(0)
+            else:
+                cls.client_model_accuracy[client_id] = [0]
+
 
         else:
-            local_weight = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
-            cls.local_weights[client_id] = local_weight
-            cls.evaluateClientModel(client_id, local_weight)
+            print("Client id", str(client_id), " updated")
+            local_param = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
+            cls.local_weights[client_id] = local_param
+            cls.evaluateClientModel(client_id, local_param)
         
         cls.done_clients += 1 # increment current count
 
@@ -72,6 +74,13 @@ class FederatedServer:
 
     @classmethod
     def FedAvg(cls):
+        print("number", cls.client_number)
+        print("exp", cls.experiment)
+        print("done", cls.done_clients)
+        print("server round", cls.server_round)
+        print("max round", cls.max_round)
+        print("num data", cls.num_data)
+
         """
         cls.local_weights 는 client id를 key로 weight array를 value로 가지는 dictionary임
 
@@ -84,14 +93,18 @@ class FederatedServer:
         - 각 client가 가지고 있는 데이터 수는 cls.num_data에 담겨 있음
         - 전체 데이터 수는 cls.total_num_data에 담겨 있음
         """
+        print(f"FedAvg at round {cls.server_round}")
         ### TODO ###
         weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[random.choice(list(cls.local_weights))]))
+        total_num_data = 0
+        for client_id in cls.local_weights:
+            total_num_data += cls.num_data[client_id]
 
         for client_id, client_weight in cls.local_weights.items():
             client_num_data = cls.num_data[client_id]
 
             for i in range(len(weight)):
-                weighted_weight = client_weight[i] * (client_num_data/cls.total_num_data)
+                weighted_weight = client_weight[i] * (client_num_data/total_num_data)
                 weight[i] += weighted_weight
         ### TODO ###
         cls.set_server_weight(weight)
@@ -140,7 +153,6 @@ class FederatedServer:
     def next_round(cls):
         cls.done_clients = 0 # reset current
         cls.server_round += 1 # proceed
-        cls.total_num_data = 0 # 전체 데이터 개수
         cls.num_data = {}
 
     @classmethod
@@ -170,7 +182,7 @@ class FederatedServer:
         cls.done_clients = 0
         cls.server_round = 0
         cls.num_data = {}
-        cls.total_num_data = 0
+        #cls.total_num_data = 0
 
     @classmethod
     def set_server_weight(cls, weight):
