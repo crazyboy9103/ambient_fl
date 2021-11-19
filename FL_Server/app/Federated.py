@@ -27,7 +27,7 @@ class FederatedServer:
                     tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
                     tf.keras.layers.Dropout(0.25),
                     tf.keras.layers.Flatten(),
-                    #tf.keras.layers.Dense(128, activation='relu'),
+                    tf.keras.layers.Dense(128, activation='relu'),
                     tf.keras.layers.Dropout(0.5),
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
