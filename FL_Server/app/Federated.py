@@ -33,6 +33,7 @@ class FederatedServer:
                     tf.keras.layers.Dropout(0.5),
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
+
     
     optimizer = tf.keras.optimizers.SGD()
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
@@ -40,6 +41,7 @@ class FederatedServer:
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     
     logger = None 
+
 
     @classmethod
     def initialize(cls, client_num, experiment, max_round):
@@ -51,7 +53,7 @@ class FederatedServer:
         cls.max_round = max_round
         cls.logger.INFO(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
         return "Initialized server"
-    
+
     @classmethod
     def build_logger(cls, name):
         logger = logging.getLogger('log_custom')
@@ -86,10 +88,13 @@ class FederatedServer:
         config = cls.model.to_json()
         return config
 
+
     @classmethod
     def update_num_data(cls, client_id, num_data):
         cls.num_data[client_id] = num_data
         cls.logger.INFO(f"Client {client_id} contains {num_data} data samples")
+        return f"Number of data for {client_id} updated"
+
 
     @classmethod
     def update(cls, client_id, local_weight):
@@ -137,6 +142,7 @@ class FederatedServer:
     
         print(f"FedAvg at round {cls.server_round}")
         weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[random.choice(list(cls.local_weights))]))
+
         total_num_data = 0
         for client_id in cls.local_weights:
             total_num_data += cls.num_data[client_id]
@@ -149,7 +155,6 @@ class FederatedServer:
                 weight[i] += weighted_weight
   
         cls.set_server_weight(weight)
-
 
     @classmethod
     def evaluateClientModel(cls, client_id, weight):
@@ -203,8 +208,6 @@ class FederatedServer:
     def save_ckpt(cls):
         cls.model.save_weights("./checkpoints/FL")
         
-
-
     @classmethod
     def reset(cls):
         cls.client_model_accuracy = {}
@@ -214,7 +217,6 @@ class FederatedServer:
         cls.done_clients = 0
         cls.server_round = 0
         cls.num_data = {}
-        #cls.total_num_data = 0
 
     @classmethod
     def set_server_weight(cls, weight):
