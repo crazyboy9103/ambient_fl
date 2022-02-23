@@ -10,22 +10,24 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Quiet tensorflow error messages
 
 class Client:
-    def __init__(self, max_round, time_delay = 5, suppress=True, num_samples=600, client_id = 0, experiment = 1):
+    def __init__(self, ip_address, max_round, time_delay = 5, num_samples=600, client_id = 0, experiment = 1):
         '''
         Urls
         '''
-        self.base_url = "http://147.47.200.178:9103/" # Base Url
+        self.session = requests.Session()
+        self.base_url = ip_address
         self.put_weight_url =  self.base_url + "put_weight/" + str(client_id)
         self.get_weight_url =  self.base_url + "get_server_weight" # Url that we send or fetch weight parameters
         self.round_url =  self.base_url + "get_server_round" 
-
+        self.get_model_url = self.base_url + "get_server_model"
+        self.get_compile_config_url = self.base_url + "get_compile_config"
+        
         '''
         Initial setup
         '''
         self.experiment = experiment
         self.client_id = client_id
         self.time_delay = time_delay
-        self.suppress = suppress
         self.global_round = self.request_global_round()
         self.current_round = 0
         self.max_round = max_round # Set the maximum number of rounds
@@ -34,13 +36,19 @@ class Client:
         Downloads MNIST dataset and prepares (train_x, train_y), (test_x, test_y)
         '''
         self.train_images, self.train_labels, self.test_images, self.test_labels = self.prepare_images()
+        
+        
+        
         self.split_train_images, self.split_train_labels = self.data_split(num_samples)
         self.local_data_num = len(self.split_train_labels)
         
         '''
-        Builds model
+        Builds model from server
         '''
-        self.model = self.build_cnn_model()
+        
+        self.model = self.build_model_from_server()
+        
+        
         
     def prepare_images(self):
         """
@@ -57,30 +65,15 @@ class Client:
         test_images=test_images.reshape(-1,28, 28, 1)
         return train_images, train_labels, test_images, test_labels
     
-    def build_cnn_model(self):
-        """
-        @params: 
-            None
-        
-        @return: 
-            None : saves the CNN model in self.model variable 
-        """
-        #This model definition must be same in the server (Federated.py)
-        model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dropout(0.5),
-            tf.keras.layers.Dense(10, activation='softmax')
-        ])
-
-        model.compile(optimizer=tf.keras.optimizers.SGD(),
-                      loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                      metrics=['accuracy'])
+    def build_model_from_server(self):
+        model = self.session.get(self.get_model_url)
+        model = tf.keras.models.model_from_json(model)
+        optimizer, loss, metrics = self.request_compile_config()
+        model.compile(optimizer=optimizer,
+                    loss=loss,
+                    metrics=metrics)
         return model
+        
         
     def data_split(self, num_samples):
         """
@@ -100,25 +93,16 @@ class Client:
         
         train_index_list = [[], [], [], [], [], [], [], [], [], []]
         test_index_list = [[], [], [], [], [], [], [], [], [], []]
+
         for i, v in enumerate(self.train_labels):
             train_index_list[v].append(i)
 
         for i, v in enumerate(self.test_labels):
             test_index_list[v].append(i)
 
-        
         split_train_images = []
         split_train_labels = []
-        
-        """
-        Todo : split the data according to the instructions        
-        """
-        
-        """
-        For each experiment, you must
-            1. save the total number of samples to self.local_data_num variable
-            2. add the split images and labels into self.split_train_images and self.split_train_labels respectively
-        """
+
         if self.experiment == 1: #uniform data split
             # all 
             self.local_data_num = num_samples
@@ -191,15 +175,21 @@ class Client:
         update the total number of training images that is stored in the server
         """
         update_num_data_url =  self.base_url + "update_num_data/"+str(self.client_id)+"/"+str(num_data)
-        requests.get(update_num_data_url)
+        self.session.get(update_num_data_url)
         
-
+    def request_compile_config(self):
+        config_json = self.session.get(self.get_compile_config_url)
+        compile_config = json.loads(config_json)
+        optim = compile_config["optim"].deserialize()
+        loss = compile_config["loss"].deserialize()
+        metrics = json.loads(compile_config["metrics"])
+        return optim, loss, metrics
     
     def request_global_round(self):
         """
         result : Current global round that the server is in
         """
-        result = requests.get(self.round_url)
+        result = self.session.get(self.round_url)
         result = result.json()
         return result
     
@@ -207,7 +197,7 @@ class Client:
         """
         global_weight : Up-to-date version of the model parameters
         """
-        result = requests.get(self.get_weight_url)
+        result = self.session.get(self.get_weight_url)
         result_data = result.json()
         
         global_weight = None
@@ -228,7 +218,7 @@ class Client:
         for i in range(len(local_weight)):
             local_weight[i] = local_weight[i].tolist()
         local_weight_to_json = json.dumps(local_weight)
-        requests.put(self.put_weight_url, data=local_weight_to_json)
+        self.session.put(self.put_weight_url, data=local_weight_to_json)
         
     def train_local_model(self):
         print("train started")
@@ -263,7 +253,7 @@ class Client:
             return 
 
         if self.global_round == self.current_round: #need update 
-            print("Client "+ str(self.client_id) + "needs update")
+            print(f"Client {str(self.client_id)} needs update")
             self.split_train_images, self.split_train_labels = self.data_split(num_samples=self.local_data_num)
             self.update_total_num_data(self.local_data_num) 
             self.current_round += 1
@@ -279,13 +269,14 @@ class Client:
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--round", '-r', type=int, help="max round")
-    parser.add_argument("--num", '-n', type=int, help="number of samples (overridden if exp == 3, 4")
-    parser.add_argument("--id", type=int, help="client id")
-    parser.add_argument("--exp", type=int, help="experiment number")
-    parser.add_argument("--delay", type=int, help="time delay")
+    parser.add_argument("--ip", type=str, help="ip address of the server", default="http://147.47.200.178:9103/") 
+    parser.add_argument("--round", '-r', type=int, help="max round", default=5)
+    parser.add_argument("--num", '-n', type=int, help="number of samples (ignored if exp == 3, 4)", default=600)
+    parser.add_argument("--id", type=int, help="client id", default=0)
+    parser.add_argument("--exp", type=int, help="experiment number", default=1)
+    parser.add_argument("--delay", type=int, help="time delay in seconds", default=5)
     args = parser.parse_args()
     
-    client = Client(args.round, args.delay, True, args.num, args.id, args.exp)
+    client = Client(args.ip, args.round, args.delay, args.num, args.id, args.exp)
     client.task()
     
