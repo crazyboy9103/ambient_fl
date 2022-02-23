@@ -5,6 +5,9 @@ import json
 from app import numpy_encoder
 import os
 import random
+import logging 
+from datetime import datetime
+
 class FederatedServer:
     client_number = 5 # 전체 클라이언트 개수
     server_weight = None # 현재 서버에 저장되어있는 weight
@@ -30,33 +33,81 @@ class FederatedServer:
                     tf.keras.layers.Dropout(0.5),
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
-    model.compile(optimizer=tf.keras.optimizers.SGD(), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
     
+    optimizer = tf.keras.optimizers.SGD()
+    loss = tf.keras.losses.SparseCategoricalCrossentropy()
+    metrics = ['accuracy']
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    
+    logger = None 
+
     @classmethod
     def initialize(cls, client_num, experiment, max_round):
+        current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        cls.logger = cls.build_logger(current_time)
         cls.reset() # reset the variables when initialized
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
-        print(f"Initialized server with {client_num} clients, experiment  {experiment}, max round {max_round}")
+        cls.logger.INFO(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
         return "Initialized server"
+    
+    @classmethod
+    def build_logger(cls, name):
+        logger = logging.getLogger('log_custom')
+        logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter("%(asctime)s;[%(levelname)s];%(message)s",
+                              "%Y-%m-%d %H:%M:%S")
+        
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(formatter)
+        streamHandler.setLevel(logging.INFO)
+        logger.addHandler(streamHandler)
+
+        fileHandler = logging.FileHandler(f'./log_{name}.txt' ,mode = "w")
+        fileHandler.setFormatter(formatter)
+        fileHandler.setLevel(logging.INFO)
+        logger.addHandler(fileHandler)
+        
+        logger.propagate = False
+        return logger
+
+    @classmethod
+    def get_compile_config(cls):
+        optim_config = cls.optimizer.serialize()
+        loss_config = cls.loss.serialize()
+        metrics_config = json.dumps(cls.metrics)
+        compile_config = {"optim": optim_config, "loss": loss_config, "metrics":metrics_config}
+        return compile_config
+
+    @classmethod
+    def get_model_as_json(cls):
+        config = cls.model.to_json()
+        return config
+
     @classmethod
     def update_num_data(cls, client_id, num_data):
         cls.num_data[client_id] = num_data
-        print(f"Number of data for {client_id} updated")
+        cls.logger.INFO(f"Client {client_id} contains {num_data} data samples")
 
     @classmethod
     def update(cls, client_id, local_weight):
         if not local_weight:
-            print("Client id", str(client_id), " weight error")
+            cls.logger.INFO(f"Client {client_id} weight error")
+            print(f"Client {client_id} weight error")
+
             if client_id in cls.client_model_accuracy:
                 cls.client_model_accuracy[client_id].append(0)
+
             else:
                 cls.client_model_accuracy[client_id] = [0]
 
 
         else:
-            print("Client id", str(client_id), " updated")
+            cls.logger.INFO(f"Client {client_id} weight updated")
+            print(f"Client {client_id} weight updated")
+
             local_param = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
             cls.local_weights[client_id] = local_param
             cls.evaluateClientModel(client_id, local_param)
@@ -64,12 +115,14 @@ class FederatedServer:
         cls.done_clients += 1 # increment current count
 
         if cls.done_clients == cls.client_number:
+            cls.logger.INFO(f"Round {cls.server_round} FedAvg with {cls.client_number} clients, experiment {cls.experiment}, max round {cls.max_round}, data samples {cls.num_data} ")
             cls.FedAvg() # fed avg
             cls.evaluateServerModel()
             cls.next_round()
 
         if cls.server_round == cls.max_round: # federated learning finished
-            cls.save() # save all history into json file
+            cls.logger.INFO("FL done")
+            cls.save_ckpt() # save checkpoint
             cls.reset()
 
     @classmethod
@@ -81,20 +134,8 @@ class FederatedServer:
         print("max round", cls.max_round)
         print("num data", cls.num_data)
 
-        """
-        cls.local_weights 는 client id를 key로 weight array를 value로 가지는 dictionary임
-
-        - 여기서, weight array의 shape를 모르기 때문에, cls.local_weights로부터 하나의 weight를 뽑아서 
-        np.zeros_like 함수를 통해 임시 array를 만들고, 거기에 weight를 쌓는다
-        
-        - weight 변수는 각 layer에 해당하는 np.array들을 담고있는 list여야 한다.
-
-        - FedAvg 알고리즘을 구현하라 (weighted average)
-        - 각 client가 가지고 있는 데이터 수는 cls.num_data에 담겨 있음
-        - 전체 데이터 수는 cls.total_num_data에 담겨 있음
-        """
+    
         print(f"FedAvg at round {cls.server_round}")
-        ### TODO ###
         weight = list(map(lambda block: np.zeros_like(block, dtype=np.float32), cls.local_weights[random.choice(list(cls.local_weights))]))
         total_num_data = 0
         for client_id in cls.local_weights:
@@ -106,8 +147,9 @@ class FederatedServer:
             for i in range(len(weight)):
                 weighted_weight = client_weight[i] * (client_num_data/total_num_data)
                 weight[i] += weighted_weight
-        ### TODO ###
+  
         cls.set_server_weight(weight)
+
 
     @classmethod
     def evaluateClientModel(cls, client_id, weight):
@@ -123,12 +165,13 @@ class FederatedServer:
         test_images = test_images / 255
         test_images = test_images.reshape(-1,28, 28, 1)
 
-        acc = cls.model.evaluate(test_images, test_labels)
+        acc = cls.model.evaluate(test_images, test_labels)[1] 
 
         if client_id not in cls.client_model_accuracy:
             cls.client_model_accuracy[client_id] = []
 
-        cls.client_model_accuracy[client_id].append(acc[1])
+        cls.logger.INFO(f"Round {cls.server_round} Client {client_id} accuracy {acc}")
+        cls.client_model_accuracy[client_id].append(acc)
 
         if cls.server_weight != None:
             cls.model.set_weights(cls.server_weight) # revert to server weight
@@ -146,6 +189,7 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
 
         acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
+        cls.logger.INFO(f"Round {cls.server_round} Server model accuracy {acc}")
         # each index corresponds to a round
         cls.server_model_accuracy.append(acc)
 
@@ -156,21 +200,9 @@ class FederatedServer:
         cls.num_data = {}
 
     @classmethod
-    def save(cls):
-        result = {"client number": cls.client_number,
-                  "experiment":cls.experiment,
-                  "max round": cls.max_round,
-                  "clients acc" : cls.client_model_accuracy,
-                  "server acc" : cls.server_model_accuracy, 
-                 "final weight": list(weight.tolist() for weight in cls.server_weight)}
-        import json
-        from time import gmtime, strftime
-        timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
-        with open("../Logs/"+timestamp+".json", 'w') as f:
-            json.dump(result, f)
-        print("################################################")
-        print("#Json file saved as ../Logs/", timestamp+".json#")
-        print("################################################")
+    def save_ckpt(cls):
+        cls.model.save_weights("./checkpoints/FL")
+        
 
 
     @classmethod
