@@ -72,10 +72,23 @@ if __name__ == "__main__":
 
     init = requests.get(f"{args.ip}/initialize/{CLIENT_NUM}/{args.exp}/{args.round}")
     print(init)
+    
+    print("Kill all containers")
+    jetson.send_command("docker kill $(docker ps -q)")
+    print("...completed")
 
-    print("docker pull crazyboy9103/jetson_fl:latest")
+    print("Remove 'client' container")
+    jetson.send_command("docker rm client")
+    print("...completed")
+
+    print("Pull latest image")
     jetson.send_command("docker pull crazyboy9103/jetson_fl:latest")
+    print("...completed")
+    print("Running the container")
     jetson.send_command("docker run -d -ti --name client --gpus all crazyboy9103/jetson_fl:latest")
+    print("...completed")
+
+    print("Starting federated learning")
     jetson.start_fed(experiment=args.exp, delay=args.delay, max_round=args.round, num_samples=args.num, num_clients=CLIENT_NUM) #important
     jetson.send_command("docker rm client")
     print("Federated learning done")
