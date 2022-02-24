@@ -67,18 +67,10 @@ class Client:
     
     def build_model_from_server(self):
         model = self.session.get(self.get_model_url).json()
-        #print("model", model)
-        #print("model",data)
-        #print("type", type(model))
-        
-        #temp = json.loads(data)
-       # print(type(temp))
-        model = tf.keras.models.model_from_json(model, custom_objects={"null":None})
-        #print(model.layers)
+        model = tf.keras.models.model_from_json(model, custom_objects={"null":None}) # None converted in null, which is unexpected..
+                                                                                     # Remap null to None
         optimizer, loss, metrics = self.request_compile_config()
-        model.compile(optimizer=optimizer,
-                    loss=loss,
-                    metrics=metrics)
+        model.compile(optimizer=optimizer,loss=loss,metrics=metrics)
         return model
         
         
@@ -240,7 +232,7 @@ class Client:
         self.model.fit(self.split_train_images, self.split_train_labels, epochs=10, batch_size=8, verbose=0)
         local_weight = self.model.get_weights()
         return local_weight
-    
+
     def task(self):
         """
         Federated learning task

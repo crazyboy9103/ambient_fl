@@ -24,7 +24,7 @@ class FederatedServer:
     server_model_accuracy = []
 
     model = tf.keras.models.Sequential([
-                    tf.keras.layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
+                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
                     tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
                     tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
                     tf.keras.layers.Dropout(0.25),
@@ -34,7 +34,7 @@ class FederatedServer:
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
 
-    optimizer = tf.keras.optimizers.SGD(lr=0.001)
+    optimizer = tf.keras.optimizers.Adam(lr=0.001)
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     metrics = ['accuracy']
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
