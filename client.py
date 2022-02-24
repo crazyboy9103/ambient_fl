@@ -16,11 +16,11 @@ class Client:
         '''
         self.session = requests.Session()
         self.base_url = ip_address
-        self.put_weight_url =  self.base_url + "put_weight/" + str(client_id)
-        self.get_weight_url =  self.base_url + "get_server_weight" # Url that we send or fetch weight parameters
-        self.round_url =  self.base_url + "get_server_round" 
-        self.get_model_url = self.base_url + "get_server_model"
-        self.get_compile_config_url = self.base_url + "get_compile_config"
+        self.put_weight_url =  self.base_url + "/put_weight/" + str(client_id)
+        self.get_weight_url =  self.base_url + "/get_server_weight" # Url that we send or fetch weight parameters
+        self.round_url =  self.base_url + "/get_server_round" 
+        self.get_model_url = self.base_url + "/get_server_model"
+        self.get_compile_config_url = self.base_url + "/get_compile_config"
         
         '''
         Initial setup
@@ -66,8 +66,15 @@ class Client:
         return train_images, train_labels, test_images, test_labels
     
     def build_model_from_server(self):
-        model = self.session.get(self.get_model_url)
-        model = tf.keras.models.model_from_json(model)
+        model = self.session.get(self.get_model_url).json()
+        #print("model", model)
+        #print("model",data)
+        #print("type", type(model))
+        
+        #temp = json.loads(data)
+       # print(type(temp))
+        model = tf.keras.models.model_from_json(model, custom_objects={"null":None})
+        #print(model.layers)
         optimizer, loss, metrics = self.request_compile_config()
         model.compile(optimizer=optimizer,
                     loss=loss,
@@ -174,15 +181,14 @@ class Client:
         
         update the total number of training images that is stored in the server
         """
-        update_num_data_url =  self.base_url + "update_num_data/"+str(self.client_id)+"/"+str(num_data)
+        update_num_data_url =  self.base_url + "/update_num_data/"+str(self.client_id)+"/"+str(num_data)
         self.session.get(update_num_data_url)
         
     def request_compile_config(self):
-        config_json = self.session.get(self.get_compile_config_url)
-        compile_config = json.loads(config_json)
-        optim = compile_config["optim"].deserialize()
-        loss = compile_config["loss"].deserialize()
-        metrics = json.loads(compile_config["metrics"])
+        compile_config = self.session.get(self.get_compile_config_url).json()
+        optim = tf.keras.optimizers.deserialize(compile_config["optim"])
+        loss = tf.keras.losses.deserialize(compile_config["loss"])
+        metrics = compile_config["metrics"]
         return optim, loss, metrics
     
     def request_global_round(self):
@@ -247,9 +253,9 @@ class Client:
         self.global_round = self.request_global_round()
         
         print("global round", self.global_round)
-        print("current round", self.current_round)
+        print(f"Client {self.client_id} current round {self.current_round}")
         if self.current_round >= self.max_round:
-            print("Client", self.client_id, "finished")
+            print(f"Client {self.client_id} finished")
             return 
 
         if self.global_round == self.current_round: #need update 
@@ -263,11 +269,11 @@ class Client:
             return self.task()
 
         else: #need to wait until other clients finish
-            print("need wait")
+            print(f"Client {self.client_id} needs wait")
             time.sleep(self.time_delay)
             return self.task()
-        
-if __name__ == "__main__":
+
+"""if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", type=str, help="ip address of the server", default="http://147.47.200.178:9103/") 
     parser.add_argument("--round", '-r', type=int, help="max round", default=5)
@@ -278,5 +284,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     client = Client(args.ip, args.round, args.delay, args.num, args.id, args.exp)
-    client.task()
+    client.task()"""
     

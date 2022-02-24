@@ -7,12 +7,12 @@ import threading
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", required=True, default="http://127.0.0.1:9103", type=str)
-    parser.add_argument("--client", required=True, default=5, type=int)
-    parser.add_argument("--exp", required=True, default=1, type=int)
-    parser.add_argument("--round", required=True, default=5, type=int)
-    parser.add_argument("--num", required=True, default=300, type=int)
-    parser.add_argument("--delay", required=True, default=5, type=int)
+    parser.add_argument("--ip", default="http://127.0.0.1:22222", type=str)
+    parser.add_argument("--client", default=5, type=int)
+    parser.add_argument("--exp",  default=1, type=int)
+    parser.add_argument("--round", default=5, type=int)
+    parser.add_argument("--num", default=300, type=int)
+    parser.add_argument("--delay", default=5, type=int)
     args = parser.parse_args()
 
     
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     clients = []
     for i in range(args.client):
-        client = Client(args.ip, args.round, args.delay, args.num, args.id, args.exp)
+        client = Client(args.ip, args.round, args.delay, args.num, i, args.exp)
         clients.append(client)
 
     for client in clients:

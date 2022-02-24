@@ -1,0 +1,87 @@
+2022-02-24 03:36:25;[INFO];Server initialized with 5 clients, experiment 1, max round 5
+2022-02-24 03:36:27;[INFO];Client 2 contains 300 data samples
+2022-02-24 03:36:27;[INFO];Client 0 contains 300 data samples
+2022-02-24 03:36:27;[INFO];Client 3 contains 300 data samples
+2022-02-24 03:36:27;[INFO];Client 1 contains 300 data samples
+2022-02-24 03:36:27;[INFO];Client 4 contains 300 data samples
+2022-02-24 03:36:40;[INFO];Client 1 weight updated
+2022-02-24 03:36:41;[INFO];Client 4 weight updated
+2022-02-24 03:36:42;[INFO];Client 3 weight updated
+2022-02-24 03:36:43;[INFO];Client 2 weight updated
+2022-02-24 03:36:43;[INFO];Round 0 Client 1 accuracy 0.41499999165534973
+2022-02-24 03:36:44;[INFO];Client 0 weight updated
+2022-02-24 03:36:44;[INFO];Round 0 Client 4 accuracy 0.2540000081062317
+2022-02-24 03:36:45;[INFO];Round 0 Client 3 accuracy 0.26899999380111694
+2022-02-24 03:36:45;[INFO];Round 0 Client 2 accuracy 0.2669999897480011
+2022-02-24 03:36:45;[INFO];Round 0 Client 0 accuracy 0.2540000081062317
+2022-02-24 03:36:45;[INFO];Round 0 FedAvg with 5 clients, experiment 1, max round 5, data samples {2: 300, 0: 300, 3: 300, 1: 300, 4: 300} 
+2022-02-24 03:36:45;[INFO];Round 0 Server model accuracy 0.24899999797344208
+2022-02-24 03:36:48;[INFO];Client 1 contains 300 data samples
+2022-02-24 03:36:49;[INFO];Client 4 contains 300 data samples
+2022-02-24 03:36:50;[INFO];Client 2 contains 300 data samples
+2022-02-24 03:36:50;[INFO];Client 3 contains 300 data samples
+2022-02-24 03:36:52;[INFO];Client 0 contains 300 data samples
+2022-02-24 03:37:00;[INFO];Client 1 weight updated
+2022-02-24 03:37:01;[INFO];Round 1 Client 1 accuracy 0.3059999942779541
+2022-02-24 03:37:02;[INFO];Client 4 weight updated
+2022-02-24 03:37:03;[INFO];Round 1 Client 4 accuracy 0.24799999594688416
+2022-02-24 03:37:04;[INFO];Client 2 weight updated
+2022-02-24 03:37:04;[INFO];Round 1 Client 2 accuracy 0.23499999940395355
+2022-02-24 03:37:05;[INFO];Client 3 weight updated
+2022-02-24 03:37:06;[INFO];Round 1 Client 3 accuracy 0.28200000524520874
+2022-02-24 03:37:06;[INFO];Client 0 weight updated
+2022-02-24 03:37:07;[INFO];Round 1 Client 0 accuracy 0.27000001072883606
+2022-02-24 03:37:07;[INFO];Round 1 FedAvg with 5 clients, experiment 1, max round 5, data samples {1: 300, 4: 300, 2: 300, 3: 300, 0: 300} 
+2022-02-24 03:37:07;[INFO];Round 1 Server model accuracy 0.2199999988079071
+2022-02-24 03:37:08;[INFO];Client 4 contains 300 data samples
+2022-02-24 03:37:10;[INFO];Client 2 contains 300 data samples
+2022-02-24 03:37:11;[INFO];Client 3 contains 300 data samples
+2022-02-24 03:37:12;[INFO];Client 1 contains 300 data samples
+2022-02-24 03:37:13;[INFO];Client 0 contains 300 data samples
+2022-02-24 03:37:18;[INFO];Client 4 weight updated
+2022-02-24 03:37:19;[INFO];Round 2 Client 4 accuracy 0.3089999854564667
+2022-02-24 03:37:22;[INFO];Client 2 weight updated
+2022-02-24 03:37:23;[INFO];Round 2 Client 2 accuracy 0.2939999997615814
+2022-02-24 03:37:24;[INFO];Client 3 weight updated
+2022-02-24 03:37:24;[INFO];Round 2 Client 3 accuracy 0.335999995470047
+2022-02-24 03:37:25;[INFO];Client 1 weight updated
+2022-02-24 03:37:26;[INFO];Round 2 Client 1 accuracy 0.30399999022483826
+2022-02-24 03:37:26;[INFO];Client 0 weight updated
+2022-02-24 03:37:27;[INFO];Round 2 Client 0 accuracy 0.29600000381469727
+2022-02-24 03:37:27;[INFO];Round 2 FedAvg with 5 clients, experiment 1, max round 5, data samples {4: 300, 2: 300, 3: 300, 1: 300, 0: 300} 
+2022-02-24 03:37:27;[INFO];Round 2 Server model accuracy 0.25600001215934753
+2022-02-24 03:37:28;[INFO];Client 2 contains 300 data samples
+2022-02-24 03:37:29;[INFO];Client 4 contains 300 data samples
+2022-02-24 03:37:30;[INFO];Client 3 contains 300 data samples
+2022-02-24 03:37:31;[INFO];Client 1 contains 300 data samples
+2022-02-24 03:37:33;[INFO];Client 0 contains 300 data samples
+2022-02-24 03:37:40;[INFO];Client 2 weight updated
+2022-02-24 03:37:40;[INFO];Round 3 Client 2 accuracy 0.3610000014305115
+2022-02-24 03:37:42;[INFO];Client 4 weight updated
+2022-02-24 03:37:42;[INFO];Round 3 Client 4 accuracy 0.3310000002384186
+2022-02-24 03:37:44;[INFO];Client 3 weight updated
+2022-02-24 03:37:44;[INFO];Round 3 Client 3 accuracy 0.29499998688697815
+2022-02-24 03:37:45;[INFO];Client 1 weight updated
+2022-02-24 03:37:45;[INFO];Round 3 Client 1 accuracy 0.3580000102519989
+2022-02-24 03:37:46;[INFO];Client 0 weight updated
+2022-02-24 03:37:47;[INFO];Round 3 Client 0 accuracy 0.35899999737739563
+2022-02-24 03:37:47;[INFO];Round 3 FedAvg with 5 clients, experiment 1, max round 5, data samples {2: 300, 4: 300, 3: 300, 1: 300, 0: 300} 
+2022-02-24 03:37:47;[INFO];Round 3 Server model accuracy 0.29600000381469727
+2022-02-24 03:37:48;[INFO];Client 4 contains 300 data samples
+2022-02-24 03:37:50;[INFO];Client 3 contains 300 data samples
+2022-02-24 03:37:51;[INFO];Client 1 contains 300 data samples
+2022-02-24 03:37:51;[INFO];Client 2 contains 300 data samples
+2022-02-24 03:37:54;[INFO];Client 0 contains 300 data samples
+2022-02-24 03:37:56;[INFO];Client 4 weight updated
+2022-02-24 03:37:56;[INFO];Round 4 Client 4 accuracy 0.3700000047683716
+2022-02-24 03:38:01;[INFO];Client 3 weight updated
+2022-02-24 03:38:02;[INFO];Round 4 Client 3 accuracy 0.41600000858306885
+2022-02-24 03:38:04;[INFO];Client 1 weight updated
+2022-02-24 03:38:05;[INFO];Client 2 weight updated
+2022-02-24 03:38:05;[INFO];Round 4 Client 1 accuracy 0.35899999737739563
+2022-02-24 03:38:06;[INFO];Round 4 Client 2 accuracy 0.3319999873638153
+2022-02-24 03:38:06;[INFO];Client 0 weight updated
+2022-02-24 03:38:07;[INFO];Round 4 Client 0 accuracy 0.3540000021457672
+2022-02-24 03:38:07;[INFO];Round 4 FedAvg with 5 clients, experiment 1, max round 5, data samples {4: 300, 3: 300, 1: 300, 2: 300, 0: 300} 
+2022-02-24 03:38:07;[INFO];Round 4 Server model accuracy 0.32499998807907104
+2022-02-24 03:38:07;[INFO];FL done

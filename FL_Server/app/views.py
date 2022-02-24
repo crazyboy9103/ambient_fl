@@ -1,5 +1,5 @@
 import json
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 # Create your views here.
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -50,7 +50,9 @@ def set_experiment(request, experiment):
 @api_view(['GET'])
 def get_server_model(request):
     try:
-        return HttpResponse(FederatedServer.get_model_as_json(), status.HTTP_200_OK)
+        model_json = FederatedServer.get_model_as_json()
+        model_json = json.dumps(model_json, separators=(',', ':'))
+        return HttpResponse(model_json, status.HTTP_200_OK)
     except:
         return HttpResponse("Failed to fetch the keras model", status.HTTP_500_INTERNAL_SERVER_ERROR)
 

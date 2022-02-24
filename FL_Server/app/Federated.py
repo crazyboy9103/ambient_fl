@@ -34,8 +34,7 @@ class FederatedServer:
                     tf.keras.layers.Dense(10, activation='softmax')
             ])
 
-    
-    optimizer = tf.keras.optimizers.SGD()
+    optimizer = tf.keras.optimizers.SGD(lr=0.001)
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     metrics = ['accuracy']
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
@@ -51,7 +50,7 @@ class FederatedServer:
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
-        cls.logger.INFO(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
+        cls.logger.info(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
         return "Initialized server"
 
     @classmethod
@@ -77,29 +76,30 @@ class FederatedServer:
 
     @classmethod
     def get_compile_config(cls):
-        optim_config = cls.optimizer.serialize()
-        loss_config = cls.loss.serialize()
-        metrics_config = json.dumps(cls.metrics)
+        optim_config = tf.keras.optimizers.serialize(cls.optimizer)
+        loss_config = tf.keras.losses.serialize(cls.loss)
+        metrics_config = cls.metrics
         compile_config = {"optim": optim_config, "loss": loss_config, "metrics":metrics_config}
+        print("compile config", compile_config)
         return compile_config
 
     @classmethod
-    def get_model_as_json(cls):
-        config = cls.model.to_json()
+    def get_model_as_json(cls, **kwargs):
+        config = cls.model.to_json(**kwargs)
         return config
 
 
     @classmethod
     def update_num_data(cls, client_id, num_data):
         cls.num_data[client_id] = num_data
-        cls.logger.INFO(f"Client {client_id} contains {num_data} data samples")
+        cls.logger.info(f"Client {client_id} contains {num_data} data samples")
         return f"Number of data for {client_id} updated"
 
 
     @classmethod
     def update(cls, client_id, local_weight):
         if not local_weight:
-            cls.logger.INFO(f"Client {client_id} weight error")
+            cls.logger.info(f"Client {client_id} weight error")
             print(f"Client {client_id} weight error")
 
             if client_id in cls.client_model_accuracy:
@@ -110,7 +110,7 @@ class FederatedServer:
 
 
         else:
-            cls.logger.INFO(f"Client {client_id} weight updated")
+            cls.logger.info(f"Client {client_id} weight updated")
             print(f"Client {client_id} weight updated")
 
             local_param = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
@@ -120,13 +120,13 @@ class FederatedServer:
         cls.done_clients += 1 # increment current count
 
         if cls.done_clients == cls.client_number:
-            cls.logger.INFO(f"Round {cls.server_round} FedAvg with {cls.client_number} clients, experiment {cls.experiment}, max round {cls.max_round}, data samples {cls.num_data} ")
+            cls.logger.info(f"Round {cls.server_round} FedAvg with {cls.client_number} clients, experiment {cls.experiment}, max round {cls.max_round}, data samples {cls.num_data} ")
             cls.FedAvg() # fed avg
             cls.evaluateServerModel()
             cls.next_round()
 
         if cls.server_round == cls.max_round: # federated learning finished
-            cls.logger.INFO("FL done")
+            cls.logger.info("FL done")
             cls.save_ckpt() # save checkpoint
             cls.reset()
 
@@ -175,7 +175,7 @@ class FederatedServer:
         if client_id not in cls.client_model_accuracy:
             cls.client_model_accuracy[client_id] = []
 
-        cls.logger.INFO(f"Round {cls.server_round} Client {client_id} accuracy {acc}")
+        cls.logger.info(f"Round {cls.server_round} Client {client_id} accuracy {acc}")
         cls.client_model_accuracy[client_id].append(acc)
 
         if cls.server_weight != None:
@@ -194,7 +194,7 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
 
         acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
-        cls.logger.INFO(f"Round {cls.server_round} Server model accuracy {acc}")
+        cls.logger.info(f"Round {cls.server_round} Server model accuracy {acc}")
         # each index corresponds to a round
         cls.server_model_accuracy.append(acc)
 
