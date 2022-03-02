@@ -236,7 +236,7 @@ class FederatedServer:
 
     @classmethod
     def save_ckpt(cls):
-        cls.model.save_weights("./checkpoints/FL")
+        cls.model.save_weights("../../checkpoints/FL")
 
     @classmethod
     def load_ckpt(cls, model_path):
