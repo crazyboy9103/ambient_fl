@@ -71,7 +71,7 @@ class FederatedServer:
         streamHandler.setLevel(logging.INFO)
         logger.addHandler(streamHandler)
 
-        fileHandler = logging.FileHandler(f'../../Logs/log_{name}.txt', mode = "w")
+        fileHandler = logging.FileHandler(f'../Logs/log_{name}.txt', mode = "w")
         fileHandler.setFormatter(formatter)
         fileHandler.setLevel(logging.INFO)
         logger.addHandler(fileHandler)

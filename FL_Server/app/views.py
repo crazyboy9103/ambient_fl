@@ -16,7 +16,8 @@ def index(request):
 def initialize(request, client_num, experiment, max_round):
     try:
         return HttpResponse(FederatedServer.initialize(client_num, experiment, max_round), status.HTTP_200_OK)
-    except:
+    except Exception as e:
+        print(e)
         return HttpResponse("Failed to initialize server", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
