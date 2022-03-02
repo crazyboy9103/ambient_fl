@@ -13,6 +13,13 @@ def index(request):
     return HttpResponse("index ok", status.HTTP_200_OK)
 
 @api_view(['GET'])
+def initialize(request, client_num, experiment, max_round):
+    try:
+        return HttpResponse(FederatedServer.initialize(client_num, experiment, max_round), status.HTTP_200_OK)
+    except:
+        return HttpResponse("Failed to initialize server", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
 def get_server_round(request):
     try:
         return HttpResponse(FederatedServer.get_server_round(), status.HTTP_200_OK)
@@ -29,25 +36,6 @@ def get_compile_config(request):
         return HttpResponse("Failed to get compile config", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-def get_experiment(request):
-    try:
-        json_data = json.dumps(FederatedServer.experiment)
-        return HttpResponse(json_data, status.HTTP_200_OK)
-    except:
-        return HttpResponse("Failed to get experiment number", status.HTTP_500_INTERNAL_SERVER_ERROR)
-       
-@api_view(['PUT'])
-def set_experiment(request, experiment):
-    if experiment not in [1,2,3,4]:
-        return HttpResponse("Set experiment to one of 1,2,3,4", status.HTTP_400_BAD_REQUEST)
-    try:
-        FederatedServer.experiment = experiment
-        return HttpResponse(f"Experiment set to {FederatedServer.experiment}", status.HTTP_200_OK)
-
-    except:
-        return HttpResponse("Failed to set experiment", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['GET'])
 def get_server_model(request):
     try:
         model_json = FederatedServer.get_model_as_json()
@@ -55,14 +43,6 @@ def get_server_model(request):
         return HttpResponse(model_json, status.HTTP_200_OK)
     except:
         return HttpResponse("Failed to fetch the keras model", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['PUT'])
-def set_client_num(request, client_num):
-    try:
-        FederatedServer.client_number = client_num
-        return HttpResponse(f"Total client number is set to {client_num}", status.HTTP_200_OK)
-    except:
-        return HttpResponse("Failed to fetch client number", status.HTTP_200_OK)
 
 @api_view(['GET'])
 def get_server_weight(request):
@@ -74,7 +54,7 @@ def get_server_weight(request):
         return HttpResponse("Failed to fetch server weight", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['PUT'])
-def put_weight(request, client_id):
+def put_local_weight(request, client_id):
     try:
         weight = JSONParser().parse(request)
         return HttpResponse(FederatedServer.update(client_id, weight), status.HTTP_200_OK)
@@ -98,9 +78,3 @@ def reset(request):
         return HttpResponse("Failed to reset server", status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
-def initialize(request, client_num, experiment, max_round):
-    try:
-        return HttpResponse(FederatedServer.initialize(client_num, experiment, max_round), status.HTTP_200_OK)
-    except:
-        return HttpResponse("Failed to initialize server", status.HTTP_500_INTERNAL_SERVER_ERROR)

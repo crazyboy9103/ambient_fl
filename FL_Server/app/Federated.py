@@ -9,38 +9,42 @@ import logging
 from datetime import datetime
 
 class FederatedServer:
-    client_number = 5 # 전체 클라이언트 개수
-    server_weight = None # 현재 서버에 저장되어있는 weight
-    local_weights = {} # 각 클라이언트에서 받아온 parameter들의 리스트
+    # variables set by cls.initialize(client_num, experiment, max_round)
+    client_number = 5 
+    experiment = 1 
+    max_round = 5 
 
-    experiment = 1 #Uniform by default
-
-    done_clients = 0 # Task가 끝난 클라이언트의 개수
-    server_round = 0 # 현재 라운드
-    max_round = 5 #
-
-    num_data = {}
+    # variables reset by cls.reset()
     client_model_accuracy = {}
     server_model_accuracy = []
+    server_weight = None # server's weight
+    local_weights = {} # weights of each client
+    done_clients = 0 # 
+    server_round = 0 # 현재 라운드
+    num_data = {}
 
+    # model architecture
     model = tf.keras.models.Sequential([
-                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-                    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-                    tf.keras.layers.Dropout(0.25),
-                    tf.keras.layers.Flatten(),
-                    tf.keras.layers.Dense(128, activation='relu'),
-                    tf.keras.layers.Dropout(0.5),
-                    tf.keras.layers.Dense(10, activation='softmax')
-            ])
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        tf.keras.layers.Dropout(0.25),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
 
+    # optimizer, loss, metrics 
     optimizer = tf.keras.optimizers.Adam(lr=0.001)
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     metrics = ['accuracy']
+
+    # compile model
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     
+    # logger
     logger = None 
-
 
     @classmethod
     def initialize(cls, client_num, experiment, max_round):
@@ -50,8 +54,9 @@ class FederatedServer:
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
+        cls.logger.info(f"Log filename /home/ambient_fl/Logs/log_{current_time}.txt")
         cls.logger.info(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
-        return "Initialized server"
+        return f"Log filename /home/ambient_fl/Logs/log_{current_time}.txt"
 
     @classmethod
     def build_logger(cls, name):
@@ -66,7 +71,7 @@ class FederatedServer:
         streamHandler.setLevel(logging.INFO)
         logger.addHandler(streamHandler)
 
-        fileHandler = logging.FileHandler(f'./log_{name}.txt' ,mode = "w")
+        fileHandler = logging.FileHandler(f'../../Logs/log_{name}.txt' ,mode = "w")
         fileHandler.setFormatter(formatter)
         fileHandler.setLevel(logging.INFO)
         logger.addHandler(fileHandler)
@@ -80,7 +85,6 @@ class FederatedServer:
         loss_config = tf.keras.losses.serialize(cls.loss)
         metrics_config = cls.metrics
         compile_config = {"optim": optim_config, "loss": loss_config, "metrics":metrics_config}
-        print("compile config", compile_config)
         return compile_config
 
     @classmethod
@@ -100,7 +104,7 @@ class FederatedServer:
     def update(cls, client_id, local_weight):
         if not local_weight:
             cls.logger.info(f"Client {client_id} weight error")
-            print(f"Client {client_id} weight error")
+            #print(f"Client {client_id} weight error")
 
             if client_id in cls.client_model_accuracy:
                 cls.client_model_accuracy[client_id].append(0)
@@ -111,18 +115,16 @@ class FederatedServer:
 
         else:
             cls.logger.info(f"Client {client_id} weight updated")
-            print(f"Client {client_id} weight updated")
-
-            local_param = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
-            cls.local_weights[client_id] = local_param
-            cls.evaluateClientModel(client_id, local_param)
+            client_param = list(map(lambda weight: np.array(weight, dtype=np.float32), local_weight))
+            cls.local_weights[client_id] = client_param
+            cls.evaluateModel(client_id=client_id)
         
-        cls.done_clients += 1 # increment current count
+        cls.done_clients = len(cls.local_weights) # increment current count 
 
         if cls.done_clients == cls.client_number:
             cls.logger.info(f"Round {cls.server_round} FedAvg with {cls.client_number} clients, experiment {cls.experiment}, max round {cls.max_round}, data samples {cls.num_data} ")
             cls.FedAvg() # fed avg
-            cls.evaluateServerModel()
+            cls.evaluateModel(client_id=None) # Server's client_id is None
             cls.next_round()
 
         if cls.server_round == cls.max_round: # federated learning finished
@@ -153,20 +155,48 @@ class FederatedServer:
             for i in range(len(weight)):
                 weighted_weight = client_weight[i] * (client_num_data/total_num_data)
                 weight[i] += weighted_weight
-  
-        cls.set_server_weight(weight)
 
+        cls.server_weight = weight
+       
     @classmethod
+    def evaluateModel(cls, client_id = None):
+        mnist = tf.keras.datasets.mnist
+        (_, _), (test_images, test_labels) = mnist.load_data()
+        n = len(test_images)
+        indices = np.random.choice(n, n//10)
+
+        test_images, test_labels = test_images[indices], test_labels[indices]
+        test_images = test_images / 255
+        test_images = test_images.reshape(-1,28, 28, 1)
+
+        if not client_id: 
+            acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
+            cls.logger.info(f"Round {cls.server_round} Server model accuracy {acc}")
+            cls.server_model_accuracy.append(acc)
+
+        else:
+            cls.model.set_weights(cls.local_weights[client_id]) # change to local weight before evaluation
+            acc = cls.model.evaluate(test_images, test_labels)[1] 
+
+            if client_id not in cls.client_model_accuracy:
+                cls.client_model_accuracy[client_id] = []
+
+            cls.logger.info(f"Round {cls.server_round} Client {client_id} accuracy {acc}")
+            cls.client_model_accuracy[client_id].append(acc)
+
+            if cls.server_weight != None:
+                cls.model.set_weights(cls.server_weight) # revert to server weight
+    """
+    @classmethod    
     def evaluateClientModel(cls, client_id, weight):
         cls.model.set_weights(cls.local_weights[client_id]) # change to local weight
 
         mnist = tf.keras.datasets.mnist
         (_, _), (test_images, test_labels) = mnist.load_data()
         n = len(test_images)
-        indices = np.random.choice([i for i in range(n)], n//10)
+        indices = np.random.choice(n, n//10)
 
-        test_images = test_images[indices]
-        test_labels = test_labels[indices]
+        test_images, test_labels = test_images[indices], test_labels[indices]
         test_images = test_images / 255
         test_images = test_images.reshape(-1,28, 28, 1)
 
@@ -186,7 +216,7 @@ class FederatedServer:
         mnist = tf.keras.datasets.mnist
         (_, _), (test_images, test_labels) = mnist.load_data()
         n = len(test_images)
-        indices = np.random.choice([i for i in range(n)], n//10)
+        indices = np.random.choice(n, n//10)
 
         test_images = test_images[indices]
         test_labels = test_labels[indices]
@@ -194,10 +224,10 @@ class FederatedServer:
         test_images = test_images.reshape(-1,28, 28, 1)
 
         acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
-        cls.logger.info(f"Round {cls.server_round} Server model accuracy {acc}")
+        cls.logger.info(f"Round {cls.server_round} FedAvg Server model accuracy {acc}")
         # each index corresponds to a round
         cls.server_model_accuracy.append(acc)
-
+    """
     @classmethod
     def next_round(cls):
         cls.done_clients = 0 # reset current
@@ -207,7 +237,15 @@ class FederatedServer:
     @classmethod
     def save_ckpt(cls):
         cls.model.save_weights("./checkpoints/FL")
-        
+
+    @classmethod
+    def load_ckpt(cls, model_path):
+        try:
+            cls.model.load_weights(model_path)
+        except:
+            print(f"Failed to load from checkpoint {model_path}")
+            cls.logger.info(f"Failed to load from checkpoint {model_path}")
+
     @classmethod
     def reset(cls):
         cls.client_model_accuracy = {}
@@ -225,10 +263,6 @@ class FederatedServer:
     @classmethod
     def get_server_weight(cls):
         return cls.server_weight
-
-    @classmethod
-    def get_done_clients(cls):
-        return cls.done_clients
 
     @classmethod
     def get_server_round(cls):
