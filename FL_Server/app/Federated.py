@@ -71,7 +71,7 @@ class FederatedServer:
         streamHandler.setLevel(logging.INFO)
         logger.addHandler(streamHandler)
 
-        fileHandler = logging.FileHandler(f'../../Logs/log_{name}.txt' ,mode = "w")
+        fileHandler = logging.FileHandler(f'../../Logs/log_{name}.txt', mode = "w")
         fileHandler.setFormatter(formatter)
         fileHandler.setLevel(logging.INFO)
         logger.addHandler(fileHandler)
@@ -101,10 +101,9 @@ class FederatedServer:
 
 
     @classmethod
-    def update(cls, client_id, local_weight):
+    def update_weight(cls, client_id, local_weight):
         if not local_weight:
             cls.logger.info(f"Client {client_id} weight error")
-            #print(f"Client {client_id} weight error")
 
             if client_id in cls.client_model_accuracy:
                 cls.client_model_accuracy[client_id].append(0)

@@ -46,9 +46,9 @@ class Jetson:
                 print('ERROR')
 
                         
-    def start_fed(self, experiment, delay, max_round, num_samples, num_clients):
+    def start_fed(self, server_ip, experiment, delay, max_round, num_samples, num_clients):
         for i, (port, con) in enumerate(zip(self.ssh_ports, self.connections)):
-            command = f'docker exec client python3 /ambient_fl/client.py --round {max_round} --delay {delay} --num {num_samples} --id {i} --exp {experiment}'
+            command = f'docker exec client python3 /ambient_fl/client_jetson.py --ip {server_ip} --round {max_round} --delay {delay} --num {num_samples} --id {i} --exp {experiment}'
             print(f'----------------{port}----------------')
             try:
                 t=threading.Thread(target=con.run,args=(command,))
@@ -59,6 +59,7 @@ class Jetson:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", required=True, default="http://147.47.200.147:9103", type=str)
     parser.add_argument("--min", required=True, default=20101, type=int)
     parser.add_argument("--max", required=True, default=20136, type=int)
     parser.add_argument("--exp", required=True, default=1, type=int)
@@ -70,26 +71,32 @@ if __name__ == "__main__":
     jetson = Jetson(min_port = args.min, max_port=args.max)
     CLIENT_NUM = jetson.check() # 통신 전에 무조건 실행되야 함
 
-    init = requests.get(f"{args.ip}/initialize/{CLIENT_NUM}/{args.exp}/{args.round}")
+    init = requests.get(f"http://127.0.0.1:9103/initialize/{CLIENT_NUM}/{args.exp}/{args.round}")
     print(init)
-    
+
+    print("\n")
     print("Kill all containers")
     jetson.send_command("docker kill $(docker ps -q)")
     print("...completed")
-
+    
+    print("\n")
     print("Remove 'client' container")
     jetson.send_command("docker rm client")
     print("...completed")
-
+    
+    print("\n")
     print("Pull latest image")
     jetson.send_command("docker pull crazyboy9103/jetson_fl:latest")
     print("...completed")
+    
+    print("\n")
     print("Running the container")
     jetson.send_command("docker run -d -ti --name client --gpus all crazyboy9103/jetson_fl:latest")
     print("...completed")
 
+    print("\n")
     print("Starting federated learning")
-    jetson.start_fed(experiment=args.exp, delay=args.delay, max_round=args.round, num_samples=args.num, num_clients=CLIENT_NUM) #important
+    jetson.start_fed(server_ip=args.ip, experiment=args.exp, delay=args.delay, max_round=args.round, num_samples=args.num, num_clients=CLIENT_NUM) #important
     jetson.send_command("docker rm client")
     print("Federated learning done")
     

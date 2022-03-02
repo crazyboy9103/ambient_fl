@@ -57,10 +57,10 @@ def get_server_weight(request):
 def put_local_weight(request, client_id):
     try:
         weight = JSONParser().parse(request)
-        return HttpResponse(FederatedServer.update(client_id, weight), status.HTTP_200_OK)
+        return HttpResponse(FederatedServer.update_weight(client_id, weight), status.HTTP_200_OK)
     except:
         weight = None
-        return HttpResponse(FederatedServer.update(client_id, weight), status.HTTP_400_BAD_REQUEST)
+        return HttpResponse(FederatedServer.update_weight(client_id, weight), status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def update_num_data(request, client_id, num_data):
