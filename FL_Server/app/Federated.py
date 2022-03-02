@@ -17,11 +17,11 @@ class FederatedServer:
     # variables reset by cls.reset()
     client_model_accuracy = {}
     server_model_accuracy = []
-    server_weight = None # server's weight
+    server_weight = None # server's latest weight
     local_weights = {} # weights of each client
-    done_clients = 0 # 
-    server_round = 0 # 현재 라운드
-    num_data = {}
+    done_clients = 0 # number of clients who finished training/uploading weights
+    server_round = 0 # current round at the server
+    num_data = {} 
 
     # model architecture
     model = tf.keras.models.Sequential([
@@ -54,8 +54,8 @@ class FederatedServer:
         cls.client_number = client_num
         cls.experiment = experiment
         cls.max_round = max_round
-        cls.logger.info(f"Log filename /home/ambient_fl/Logs/log_{current_time}.txt")
         cls.logger.info(f"Server initialized with {client_num} clients, experiment {experiment}, max round {max_round}")
+        print(f"Log filename /home/ambient_fl/Logs/log_{current_time}.txt")
         return f"Log filename /home/ambient_fl/Logs/log_{current_time}.txt"
 
     @classmethod
@@ -185,48 +185,7 @@ class FederatedServer:
 
             if cls.server_weight != None:
                 cls.model.set_weights(cls.server_weight) # revert to server weight
-    """
-    @classmethod    
-    def evaluateClientModel(cls, client_id, weight):
-        cls.model.set_weights(cls.local_weights[client_id]) # change to local weight
-
-        mnist = tf.keras.datasets.mnist
-        (_, _), (test_images, test_labels) = mnist.load_data()
-        n = len(test_images)
-        indices = np.random.choice(n, n//10)
-
-        test_images, test_labels = test_images[indices], test_labels[indices]
-        test_images = test_images / 255
-        test_images = test_images.reshape(-1,28, 28, 1)
-
-        acc = cls.model.evaluate(test_images, test_labels)[1] 
-
-        if client_id not in cls.client_model_accuracy:
-            cls.client_model_accuracy[client_id] = []
-
-        cls.logger.info(f"Round {cls.server_round} Client {client_id} accuracy {acc}")
-        cls.client_model_accuracy[client_id].append(acc)
-
-        if cls.server_weight != None:
-            cls.model.set_weights(cls.server_weight) # revert to server weight
-
-    @classmethod
-    def evaluateServerModel(cls):
-        mnist = tf.keras.datasets.mnist
-        (_, _), (test_images, test_labels) = mnist.load_data()
-        n = len(test_images)
-        indices = np.random.choice(n, n//10)
-
-        test_images = test_images[indices]
-        test_labels = test_labels[indices]
-        test_images = test_images / 255
-        test_images = test_images.reshape(-1,28, 28, 1)
-
-        acc = cls.model.evaluate(test_images, test_labels)[1] # first index corresponds to accuracy
-        cls.logger.info(f"Round {cls.server_round} FedAvg Server model accuracy {acc}")
-        # each index corresponds to a round
-        cls.server_model_accuracy.append(acc)
-    """
+   
     @classmethod
     def next_round(cls):
         cls.done_clients = 0 # reset current
