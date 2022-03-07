@@ -2,83 +2,29 @@ import json, socket, pickle
 from struct import pack, unpack
 import numpy as np
 class Message(object):
-  FLAG_GET_OPTIM = 0
-  FLAG_GET_LOSS = 0
-  FLAG_GET_METRICS = 0
+  FLAG_GET_CONFIG = 0
   FLAG_GET_ARCH = 1
-  FLAG_GET_CURRENT_ROUND = 2
-  FLAG_GET_MAX_ROUND = 2
-  FLAG_GET_PARAMS = 3
-  FLAG_GET_ERROR_CODE = 4
-  FLAG_GET_NUM_DATA = 5
+  FLAG_GET_PARAMS = 2
+  FLAG_GET_STATUS_CODE = 3
+  FLAG_GET_DATA_IDX = 4
+  FLAG_GET_DATA_NAME = 5
+  FLAG_START_TRAIN = 6
 
+  HEALTH_GOOD = 7
+  HEALTH_BAD = 8
+  
   def __init__(self, source, flag, data):
-    self.id = source
+    self.source = source
     self.flag = flag 
     # Server -> Client 
     #        0 : compile config (optim, loss, metrics) - dict
     #        1 : model architecture - dict
-    #        2 : current round / max round - dict 
 
     # Client -> Server
-    #        3 : model parameters - list(np.array) 
-    #        4 : error - int ERROR_CODE
-    #        5 : num data - int num_data
+    #        2 : model parameters - list(np.array) 
+    #        3 : status code - int STATUS_CODE
+    #        4 : data idxs - {int client id: list(int)}
     self.data = data
-
-  def get_id(self):
-    return self.id
-
-  def get_optim(self):
-    # flag 0
-    return self.data["optim"]
-  
-  def get_loss(self):
-    # flag 0
-    return self.data["loss"]
-  
-  def get_metrics(self):
-    # flag 0
-    return self.data["metrics"]
-
-  def put_config(self, config):
-    self.data = config # contains optim, loss, metrics
-  
-  def get_arch(self):
-    # flag 1
-    return self.data
-  def put_arch(self, arch):
-    self.data = arch
-
-  def get_current_round(self):
-    # flag 2
-    return self.data["curr_round"]
-
-  def put_round(self, current_round, max_round):
-    self.data = {"curr_round":current_round, "max_round":max_round}
-
-  def get_max_round(self):
-    # flag 2
-    return self.data["max_round"]
-
-  def get_model_params(self):
-    # flag 3
-    return {'id': self.id, 'params':list(map(lambda layer: np.array(layer), self.data))}
-
-  def put_model_params(self, params):
-    self.data = params
-
-  def get_error_code(self):
-    # flag 4
-    return {'id': self.id, 'error_code': self.data}
-
-  def put_error_code(self, code):
-    self.data = code
-  def get_num_data(self):
-    # flag 5
-    return {'id': self.id, 'num_data': self.data}
-  def put_num_data(self, num_data):
-    self.data = num_data
 
   def __len__(self):
     return int(bool(self.data))
