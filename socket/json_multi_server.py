@@ -7,7 +7,7 @@ import time
 import logging
 from datetime import datetime
 import threading
-
+import sys
 
 class FLServer:
     EXP_UNIFORM = 0
@@ -46,6 +46,8 @@ class FLServer:
         return logger
 
     def task(self):
+        print("Start FedAvg")
+        self.logger.info("Start FedAvg")
         # Check round
         if self.curr_round < self.max_round:
             self.curr_round += 1
@@ -215,6 +217,7 @@ class FLServer:
             "param": list(map(lambda layer: layer.tolist(), self.model.get_weights()))
         })
         assert len(msg) != 0, "Message must contain data"
+        print("server model parameter size %.2f MB" % (msg.__sizeof__()/1000000))
         self.server.send(id, msg) # uses connection with client and send msg to the client
         recv_msg = self.server.recv(id)
         param = recv_msg.data
@@ -301,6 +304,7 @@ class FLServer:
             "loss": tf.keras.losses.serialize(self.loss), 
             "metrics": self.metrics
         })
+        print("server settings size %.2f MB" % (msg.__sizeof__()/1000000))
         assert len(msg) != 0, "Message must contain data"
         self.server.send(id, msg)
         recv_msg = self.server.recv(id)

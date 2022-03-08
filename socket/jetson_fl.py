@@ -92,8 +92,7 @@ class FLClient:
             return (x_train, y_train), (x_test, y_test)
 
 
-    def register(self):
-        return self.send_msg(FLAGS.FLAG_REGISTER)
+
 
     def send_msg(self, flag, data=None):
         msg = Message(source=self.id, flag=flag, data=data)
