@@ -20,9 +20,6 @@ class FLClient:
             if msg.flag == Message.TERMINATE:
                 break
 
-            if msg.flag == Message.FLAG_GET_PARAMS:
-                self.weights = self.get_model_param()
-
             if msg.flag == Message.FLAG_GET_STATUS_CODE:
                 self.send_status_code()
 
@@ -59,32 +56,26 @@ class FLClient:
             return tf.keras.datasets.fashion_mnist.load_data(path="fmnist.npz")
 
     def get_data_idxs(self):
-        return self.send_recv_msg(Message.FLAG_GET_DATA_IDX).data['data_idxs']
+        return self.recv_msg().data['data_idxs']
 
     def get_dataset_name(self):
-        return self.send_recv_msg(Message.FLAG_GET_DATA_NAME).data['dataset_name']
+        return self.recv_msg().data['dataset_name']
 
     def get_compile_config(self):
-        return self.send_recv_msg(Message.FLAG_GET_CONFIG).data
+        return self.recv_msg().data
 
     def get_model_arch(self):
-        return self.send_recv_msg(Message.FLAG_GET_ARCH).data['arch']
+        return self.recv_msg().data['arch']
 
     def get_model_param(self):
         return self.send_recv_msg(Message.FLAG_GET_PARAMS).data['param']
 
     def send_model_param(self):
-        return self.send_recv_msg(Message.FLAG_GET_PARAMS, data=list(map(lambda layer: layer.tolist(), self.model.get_weights())))
+        return self.send_msg(Message.FLAG_GET_PARAMS, data=list(map(lambda layer: layer.tolist(), self.model.get_weights())))
 
     
     def health_check(self):
         try:
-            global_weight = self.get_model_param()
-
-            if global_weight != None:
-                global_weight = list(map(lambda weight: np.array(weight), global_weight))
-                self.model.set_weights(global_weight)
-            
             test_idxs = np.random.choice(len(self.x_train), 100)
             split_x_train, split_y_train = self.x_train[test_idxs], self.y_train[test_idxs]
             self.model.fit(split_x_train, split_y_train, epochs=1, batch_size=8, verbose=0)
@@ -96,7 +87,11 @@ class FLClient:
 
     def send_status_code(self):
         data = self.health_check()
-        return self.send_recv_msg(Message.FLAG_GET_STATUS_CODE, data=data)
+        return self.send_msg(Message.FLAG_GET_STATUS_CODE, data=data)
+
+    def send_msg(self, flag, data):
+        msg = Message(source=self.id, flag=flag, data=data)
+        self.sock_client.send(msg)
 
     def send_recv_msg(self, flag=Message.FLAG_GET_ARCH, data=None):
         msg = Message(source=self.id, flag=flag, data=data)

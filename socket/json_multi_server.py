@@ -6,6 +6,8 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import time
+import logging
+from datetime import datetime
 
 class FLServer:
     EXP_UNIFORM = 0
@@ -25,10 +27,81 @@ class FLServer:
         (_, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
 
 
+
+    def build_logger(self, name):
+        logger = logging.getLogger('log_custom')
+        logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter("%(asctime)s;[%(levelname)s];%(message)s",
+                              "%Y-%m-%d %H:%M:%S")
         
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(formatter)
+        streamHandler.setLevel(logging.INFO)
+        logger.addHandler(streamHandler)
+
+        fileHandler = logging.FileHandler(f'log_{name}.txt', mode = "w")
+        fileHandler.setFormatter(formatter)
+        fileHandler.setLevel(logging.INFO)
+        logger.addHandler(fileHandler)
+        
+        logger.propagate = False
+        return logger
+
     def task(self):
-        initialize
-        train_once
+        if self.curr_round < self.max_round:
+            self.curr_round += 1
+            self.logger.info(f"Round {self.curr_round}/{self.max_round}")
+        
+        else:
+            for id in self.conns:
+                self.request_terminate(id)
+            self.logger.info("Finished FL task")
+            return 
+
+        self.client_data_idxs = self.split_dataset(self.experiment, self.num_samples)  
+
+        for id in self.client_data_idxs:
+            self.send_data_idxs(id)
+
+
+
+        
+        self.logger.info("Started FL task")
+        params, accs = self.train_once()
+        
+        for id in range(len(accs)):
+           self.logger.info(f"client {id} acc {accs[id]}")
+
+        N = sum(list(map(lambda idxs: len(idxs), self.client_data_idxs.values())))        
+        
+        aggr_layers = {}
+
+        for id, param in params.items():
+            n = len(self.client_data_idxs[id])
+            self.logger.info(f"client {id}, {n} training data samples")
+            for i, layer in enumerate(param):
+                weighted_param = (n / N) * layer
+                
+                if i not in aggr_layers:
+                    aggr_layers[i]  = []
+                
+                aggr_layers[i].append(weighted_param)
+        
+        weights = []
+
+        for i, weighted_params in range(len(aggr_layers)):
+            block = np.zeros_like(weighted_params[0], dtype=np.float32)
+            for param in weighted_params:
+                block += param
+
+            weights.append(block)
+
+        self.model.set_weights(weights)
+        acc = self.evaluate_param(weights)
+        self.logger.info(f"Server acc {acc}")
+        
+
     def build_model(self):
         model = tf.keras.models.Sequential([
             tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
@@ -132,7 +205,14 @@ class FLServer:
         if len(msg) != 0:
             self.conns[id].send(id, msg) # uses connection with client and send msg to the client
             return self.conns[id].recv(id)
-            
+    
+    def request_health_code(self, id):
+        msg = Message(source=-1, flag=Message.FLAG_GET_STATUS_CODE)
+        self.conns[id].send(id, msg)
+        recv_msg = self.conns[id].recv(id)
+        health = recv_msg.data
+        return health
+
     def send_dataset_name(self, id):
         msg = Message(source=-1, flag=Message.FLAG_GET_DATA_NAME, data={"dataset_name": self.dataset_name})
         if len(msg) != 0:
@@ -164,49 +244,62 @@ class FLServer:
             self.conns[id].send(id, msg) # uses connection with client and send msg to the client
 
     def initialize(self, experiment, num_samples, max_clients, max_round):
+        current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.logger = self.build_logger(current_time)
+
         self.client_data_idxs = self.split_dataset(experiment, num_samples)    
         self.conns = {i: self.server.accept(i) for i in range(max_clients)}
         self.max_round = max_round
-        
+        self.experiment = experiment
+        self.num_samples = num_samples
+
         for id in range(max_clients):
-            msg = self.request_status_code(id)
-            source = msg.source # must be same with id 
-            health = msg.data
+            health = self.request_health_code(id)
 
             if health == Message.HEALTH_GOOD:
-                self.send_dataset_name(source)
-                self.send_data_idxs(source)
-                self.send_model_arch(source)
+                self.send_dataset_name(id)
+                self.send_data_idxs(id)
+                self.send_model_arch(id)
+                self.send_compile_config(id)
                 
 
             elif health == Message.HEALTH_BAD:
-                self.request_terminate(source)
-                self.conns[source].close()
-                del self.conns[source]
+                self.request_terminate(id)
+                self.conns[id].close()
+                del self.conns[id]
+                del self.client_data_idxs[id]
 
         print(f"{len(self.conns)}/{max_clients} healthy")
+        return f"{len(self.conns)}/{max_clients} healthy"
 
     def train_once(self):
+        # must run after initialize
         # train and aggregate at once
-        params = []
+        params = {}
+        accs = {} 
+
         for healthy_id in self.conns:
             msg = self.request_train(healthy_id)
             param = msg.data['param']
-            self.params[healthy_id] = param
-        
-    def evaluate_param(self, id, param):
+            param = list(map(lambda layer: np.array(layer), param))
+            params[healthy_id] = param
+            accs[healthy_id] = self.evaluate_param(param) # saves acc
+        return params, accs
+
+    def evaluate_param(self, param):
         if isinstance(param[0], list):
             param = list(map(lambda layer:np.array(layer), param))
 
         temp_param = self.model.get_weights()
         self.model.set_weights(param)
-        self.model.evaluate()
 
-    def reset(self):
-        for client, conn in self.conns.items():
-            conn.close()
-        del self.conns
-        self.conns = {}
+        n = len(self.x_test)
+        idxs = np.random.choice(n, n//10, replace=False)
+        x_test, y_test = self.x_test[idxs], self.y_test[idxs]
+
+        acc = self.model.evaluate(x_test, y_test)[1]
+        self.model.set_weights(temp_param)
+        return acc
         
 
     def compile_model(self, model, optimizer = tf.keras.optimizers.Adam(learning_rate=0.001), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=["accuracy"]):
@@ -215,58 +308,10 @@ class FLServer:
         self.metrics = metrics
         model.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
         return model
-    
-    
-host = 'localhost'
-port = 20000
 
-server = Server(host, port, max_con=5)
+if __name__ == "__main__":
+    experiment, num_samples, max_clients, max_round = 1, 200, 5, 5
 
-client_counts = 2
-
-current_round = 0
-maximum_round = 5
-
-model = tf.keras.models.Sequential([
-    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-    tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
-    tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-    tf.keras.layers.Dropout(0.25),
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dropout(0.5),
-    tf.keras.layers.Dense(10, activation='softmax')
-])
-
-optimizer = tf.keras.optimizers.Adam(lr=0.001)
-loss = tf.keras.losses.SparseCategoricalCrossentropy()
-metrics = ['accuracy']
-optim_config = tf.keras.optimizers.serialize(optimizer)
-loss_config = tf.keras.losses.serialize(loss)
-metrics_config = metrics
-config = model.to_json()
-
-while True:
-    for i in range(client_counts):
-        msg = Message(source=0, flag=Message.FLAG_GET_CURRENT_ROUND, data={"curr_round":current_round, "max_round":maximum_round}) # server msg source = 0  
-
-        conn = server.accept(i)
-        msg = conn.recv(i)
-        
-        flag = msg.flag
-        if flag == Message.FLAG_GET_ARCH:
-            msg = Message(source = i, flag=flag, data={"arch": list(map(lambda layer: layer.tolist(), model.get_weights()))})
-
-            if len(msg) != 0:
-                conn.send(i, msg)
-        
-
-        print(f"client {i}")
-        print("flag", msg.flag)
-        print("len", len(msg.data))
-
-        if len(msg) != 0:
-            conn.send(i, msg)
-
-        else:
-            conn.close(i)
+    FL_Server = FLServer(host="127.0.0.1", port=20000, dataset_name="mnist") 
+    print(FL_Server.initialize(experiment, num_samples, max_clients, max_round))
+    FL_Server.task()
