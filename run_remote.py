@@ -1,11 +1,7 @@
 import argparse
-from client import *
-import requests
 import threading
 import fabric
-import logging, socket, paramiko.ssh_exception
-from fabric import Connection, Config, SerialGroup, ThreadingGroup, exceptions, runners
-from fabric.exceptions import GroupException
+from fabric import Connection
 from random import random
 import paramiko
 import time
@@ -16,7 +12,7 @@ class Jetson:
         self.address = "147.47.200.209"
         self.username, self.password = "jetson", "jetson"
         self.ports = [i for i in range(int(min_port), int(max_port)+1) if 1<=i%10<=6]
-        self.ssh_ports = []
+        self.jetson_ports = []
         self.connections = []
         
     def check(self):
@@ -26,18 +22,17 @@ class Jetson:
             print(f'----------------{port}----------------')
             try:
                 con.run(command)
-                self.ssh_ports.append(port)
+                self.jetson_ports.append(port)
                 self.connections.append(con)
             except:
                 print('ERROR')
 
-        print("Available ports", self.ssh_ports)
-        return len(self.ssh_ports)
+        print("Available ports", self.jetson_ports)
             
     
     
     def send_command(self, command):
-        for port, con in zip(self.ssh_ports, self.connections): 
+        for port, con in zip(self.jetson_ports, self.connections): 
             print(f'----------------{port}----------------')
             try:
                 con.run(command)
@@ -46,9 +41,9 @@ class Jetson:
                 print('ERROR')
 
                         
-    def start_fed(self, server_ip, experiment, delay, max_round, num_samples, num_clients):
-        for i, (port, con) in enumerate(zip(self.ssh_ports, self.connections)):
-            command = f'docker exec client python3 /ambient_fl/client_jetson.py --ip {server_ip} --round {max_round} --delay {delay} --num {num_samples} --id {i} --exp {experiment}'
+    def start_fed(self, host, port):
+        for i, (port, con) in enumerate(zip(self.jetson_ports, self.connections)):
+            command = f'docker exec client python3 /ambient_fl/socket/test_socket_client.py --id {i} --host {host} --port {port}'
             print(f'----------------{port}----------------')
             try:
                 t=threading.Thread(target=con.run,args=(command,))
@@ -59,21 +54,16 @@ class Jetson:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", required=True, default="http://147.47.200.147:9103", type=str)
-    parser.add_argument("--min", required=True, default=20101, type=int)
-    parser.add_argument("--max", required=True, default=20136, type=int)
-    parser.add_argument("--exp", required=True, default=1, type=int)
-    parser.add_argument("--round", required=True, default=5, type=int)
-    parser.add_argument("--num", required=True, default=600, type=int)
-    parser.add_argument("--delay", required=True, default=5, type=int)
+    parser.add_argument("--host", default="147.47.200.134", type=str)
+    parser.add_argument("--port", default=20000, type=int)
+    parser.add_argument("--min", default=20101, type=int)
+    parser.add_argument("--max", default=20136, type=int)
+  
     args = parser.parse_args()
 
     jetson = Jetson(min_port = args.min, max_port=args.max)
-    CLIENT_NUM = jetson.check() # 통신 전에 무조건 실행되야 함
-
-    init = requests.get(f"http://127.0.0.1:9103/initialize/{CLIENT_NUM}/{args.exp}/{args.round}")
-    print(init)
-
+    jetson.check() # 통신 전에 무조건 실행되야 함
+    
     print("\n")
     print("Kill all containers")
     jetson.send_command("docker kill $(docker ps -q)")
@@ -96,7 +86,7 @@ if __name__ == "__main__":
 
     print("\n")
     print("Starting federated learning")
-    jetson.start_fed(server_ip=args.ip, experiment=args.exp, delay=args.delay, max_round=args.round, num_samples=args.num, num_clients=CLIENT_NUM) #important
+    jetson.start_fed(host=args.host, port=args.port) 
     jetson.send_command("docker rm client")
     print("Federated learning done")
     
