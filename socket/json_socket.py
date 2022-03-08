@@ -1,19 +1,22 @@
 import json, socket, pickle
 from struct import pack, unpack
 import numpy as np
-class Message(object):
-  FLAG_GET_CONFIG = 0
-  FLAG_GET_ARCH = 1
-  FLAG_GET_PARAMS = 2
-  FLAG_GET_STATUS_CODE = 3
-  FLAG_GET_DATA_IDX = 4
-  FLAG_GET_DATA_NAME = 5
-  FLAG_START_TRAIN = 6
+from enum import Enum
 
-  HEALTH_GOOD = 7
-  HEALTH_BAD = 8
+class FLAGS(Enum):
+  FLAG_REGISTER = 99
+  FLAG_SETUP = 0
+  FLAG_START_TRAIN = 1
+  FLAG_HEALTH_CODE = 2
+  FLAG_TERMINATE = 3
+
+  RESULT_OK = 3
+  RESULT_BAD = 4
   
-  def __init__(self, source, flag, data):
+  TERMINATE = 8
+
+class Message(object):
+  def __init__(self, source, flag, data = None):
     self.source = source
     self.flag = flag 
     # Server -> Client 
@@ -37,33 +40,33 @@ class Server(object):
     self.socket.listen(max_con)
 
   def __del__(self):
-    for i in range(len(self.clients)):
-      self.close(i)
+    for id in range(len(self.clients)):
+      self.close(id)
 
-  def accept(self, i):
-    if i in self.clients:
-      self.clients[i]["client"].close()
+  def accept(self, id):
+    if id in self.clients:
+      self.clients[id]["client"].close()
     
     client, client_addr = self.socket.accept()
-    self.clients[i] = {}
-    self.clients[i]['client'] = client
-    self.clients[i]['addr'] = client_addr
-    return self
+    self.clients[id] = {}
+    self.clients[id]['client'] = client
+    self.clients[id]['addr'] = client_addr
+    
 
-  def send(self, i, data):
-    if i not in self.clients:
-      self.accept(i)
-    _send(self.clients[i]['client'], data)
+  def send(self, id, data):
+    if id not in self.clients:
+      self.accept(id)
+    _send(self.clients[id]['client'], data)
   
-  def recv(self, i):
-    if i not in self.clients:
+  def recv(self, id):
+    if id not in self.clients:
       raise Exception('Cannot receive data, no client is connected')
     
-    return _recv(self.clients[i]['client'])
+    return _recv(self.clients[id]['client'])
 
-  def close(self, i):
-    self.clients[i]['client'].close()
-    del self.clients[i]
+  def close(self, id):
+    self.clients[id]['client'].close()
+    del self.clients[id]
 
     #if self.socket:
     #  self.socket.close()
@@ -83,6 +86,7 @@ class Client(object):
     self.id = id 
     self.socket = socket.socket()
     self.socket.connect((host, port))
+    print(f"client {id} connection succeeded")
     return self
 
   def send(self, data):

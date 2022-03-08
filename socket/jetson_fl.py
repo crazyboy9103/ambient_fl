@@ -1,4 +1,4 @@
-from json_socket import Client, Message
+from json_socket import Client, Message, FLAGS
 import tensorflow as tf
 import numpy as np
 
@@ -9,36 +9,69 @@ class FLClient:
         self.port = port
         self.sock_client = Client()
         self.sock_client.connect(id, host, port)
-
-        self.model = self.build_model_from_server()
+       
      
-        (self.x_train, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(self.get_dataset_name())
-
     def task(self):
         while True:
-            msg = self.recv_msg()
-            if msg.flag == Message.TERMINATE:
-                break
+            print("waiting for msg..")
+            msg = self.sock_client.recv()
+            print("received msg..")
+            print("flag", msg.flag)
 
-            if msg.flag == Message.FLAG_GET_STATUS_CODE:
-                self.send_status_code()
+            if msg.flag == FLAGS.TERMINATE:
+                return
 
-            if msg.flag == Message.FLAG_START_TRAIN:
-                global_weight = self.get_model_param()
-                self.train_model(global_weight)
-                self.send_model_param()
-                
+            if msg.flag == FLAGS.FLAG_START_TRAIN:
+                self.respond_train(msg)
 
-    def build_model_from_server(self):
-        model_arch = self.get_model_arch()
-        #model = tf.keras.models.model_from_json(model, custom_objects={"null":None}) 
-        model = tf.keras.models.model_from_json(model_arch)
-
-        data = self.get_compile_config()
-        optimizer, loss, metrics = data['optim'], data['loss'], data['metrics']
-        model.compile(optimizer=optimizer,loss=loss,metrics=metrics)
-        return model
+            if msg.flag == FLAGS.FLAG_SETUP:
+                self.respond_setup(msg) 
+        
+        
     
+    def respond_setup(self, msg):
+        print("setup started")
+        try:
+            # 1. gets dataset
+            data = msg.data
+            dataset_name = data['dataset_name']
+            (self.x_train, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
+            self.x_train = self.x_train.reshape(-1, 28, 28, 1)
+            self.x_test  = self.x_test.reshape(-1, 28, 28, 1)
+            # 2. builds model from json
+
+            model_arch = data['arch']
+            #model = tf.keras.models.model_from_json(model, custom_objects={"null":None}) 
+            self.model = tf.keras.models.model_from_json(model_arch)
+
+            # 3. compile model 
+            optimizer, loss, metrics = tf.keras.optimizers.deserialize(data['optim']), tf.keras.losses.deserialize(data['loss']), data['metrics']
+            self.model.compile(optimizer=optimizer,loss=loss,metrics=metrics)
+            
+            # 4. test model
+            test_idxs = np.random.choice(len(self.x_train), 100)
+            split_x_train, split_y_train = self.x_train[test_idxs], self.y_train[test_idxs]
+
+            print("start training")
+            self.model.fit(split_x_train, split_y_train, epochs=1, batch_size=8, verbose=2)
+            self.send_msg(flag=FLAGS.FLAG_HEALTH_CODE, data=FLAGS.RESULT_OK)
+        
+        except Exception as e:
+            print(e)
+            self.send_msg(flag=FLAGS.FLAG_HEALTH_CODE, data=FLAGS.RESULT_BAD)
+
+    def respond_train(self, msg):
+        print("training started")
+        data = msg.data
+        data_idxs = data['data_idxs']
+        param = data['param']
+        epochs = data['epochs']
+        batch_size = data['batch_size']
+
+        self.train_model(data_idxs, param, epochs, batch_size)
+        
+        self.send_msg(FLAGS.FLAG_START_TRAIN, data=list(map(lambda layer: layer.tolist(), self.model.get_weights())))
+
     def prepare_dataset(self, name):
         if name == "mnist":
             return tf.keras.datasets.mnist.load_data(path="mnist.npz")
@@ -55,62 +88,26 @@ class FLClient:
         if name == "fmnist":
             return tf.keras.datasets.fashion_mnist.load_data(path="fmnist.npz")
 
-    def get_data_idxs(self):
-        return self.recv_msg().data['data_idxs']
 
-    def get_dataset_name(self):
-        return self.recv_msg().data['dataset_name']
+    def register(self):
+        return self.send_msg(FLAGS.FLAG_REGISTER)
 
-    def get_compile_config(self):
-        return self.recv_msg().data
-
-    def get_model_arch(self):
-        return self.recv_msg().data['arch']
-
-    def get_model_param(self):
-        return self.send_recv_msg(Message.FLAG_GET_PARAMS).data['param']
-
-    def send_model_param(self):
-        return self.send_msg(Message.FLAG_GET_PARAMS, data=list(map(lambda layer: layer.tolist(), self.model.get_weights())))
-
-    
-    def health_check(self):
-        try:
-            test_idxs = np.random.choice(len(self.x_train), 100)
-            split_x_train, split_y_train = self.x_train[test_idxs], self.y_train[test_idxs]
-            self.model.fit(split_x_train, split_y_train, epochs=1, batch_size=8, verbose=0)
-            return Message.HEALTH_GOOD
-
-        except:
-            return Message.HEALTH_BAD
-            
-
-    def send_status_code(self):
-        data = self.health_check()
-        return self.send_msg(Message.FLAG_GET_STATUS_CODE, data=data)
-
-    def send_msg(self, flag, data):
+    def send_msg(self, flag, data=None):
         msg = Message(source=self.id, flag=flag, data=data)
         self.sock_client.send(msg)
 
-    def send_recv_msg(self, flag=Message.FLAG_GET_ARCH, data=None):
+    def send_recv_msg(self, flag, data=None):
         msg = Message(source=self.id, flag=flag, data=data)
         self.sock_client.send(msg)
         response = self.sock_client.recv()
         return response
 
-    def recv_msg(self):
-        msg = self.sock_client.recv()
-        return msg 
-
-    def train_model(self, global_weight):
+    def train_model(self, data_idxs, global_weight, epochs, batch_size):
         # Train a local model from latest model parameters 
-        data_idxs = self.get_data_idxs()
-
         if global_weight != None:
             global_weight = list(map(lambda weight: np.array(weight), global_weight))
             self.model.set_weights(global_weight)
             
         split_x_train, split_y_train = self.x_train[data_idxs], self.y_train[data_idxs]
 
-        self.model.fit(split_x_train, split_y_train, epochs=10, batch_size=8, verbose=0)
+        self.model.fit(split_x_train, split_y_train, epochs=epochs, batch_size=batch_size, verbose=0)

@@ -1,13 +1,13 @@
 from platform import java_ver
 from pydoc import cli
-from json_socket import Server, Message
-import json
+from json_socket import Server, Message, FLAGS
 import numpy as np
-import pickle
 import tensorflow as tf
 import time
 import logging
 from datetime import datetime
+import threading
+
 
 class FLServer:
     EXP_UNIFORM = 0
@@ -15,18 +15,12 @@ class FLServer:
     EXP_RANDOM_DIFF_SIZE = 2
     EXP_SKEWED = 3
 
-    def __init__(self, host, port, dataset_name):
+    def __init__(self, host, port):
         self.host = host
         self.port = port
         self.server = Server(host, port, max_con=5)
-        self.model = self.compile_model(self.build_model())
-        
         self.curr_round = 0
-
-        self.dataset_name = dataset_name
-        (_, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
-
-
+        
 
     def build_logger(self, name):
         logger = logging.getLogger('log_custom')
@@ -49,37 +43,39 @@ class FLServer:
         return logger
 
     def task(self):
+        # Check round
         if self.curr_round < self.max_round:
             self.curr_round += 1
             self.logger.info(f"Round {self.curr_round}/{self.max_round}")
+            print(f"Round {self.curr_round}/{self.max_round}")
         
         else:
-            for id in self.conns:
+            for id in self.server.clients:
                 self.request_terminate(id)
             self.logger.info("Finished FL task")
+            print("Finished FL task")
             return 
 
+        # Split dataset 
         self.client_data_idxs = self.split_dataset(self.experiment, self.num_samples)  
-
-        for id in self.client_data_idxs:
-            self.send_data_idxs(id)
-
-
-
-        
         self.logger.info("Started FL task")
-        params, accs = self.train_once()
+        print("Started FL task")
         
+        # Gets trained parameters, accuracies
+        params, accs = self.train_once(self.epochs, self.batch_size)
+        
+        # record accs in log
         for id in range(len(accs)):
-           self.logger.info(f"client {id} acc {accs[id]}")
-
-        N = sum(list(map(lambda idxs: len(idxs), self.client_data_idxs.values())))        
-        
+            self.logger.info(f"client {id} acc {accs[id]}")
+            print(f"client {id} acc {accs[id]}")
+        # FedAvg Algorithm
+        N = sum(map(lambda idxs: len(idxs), self.client_data_idxs.values()))       
         aggr_layers = {}
 
         for id, param in params.items():
             n = len(self.client_data_idxs[id])
             self.logger.info(f"client {id}, {n} training data samples")
+            print(f"client {id}, {n} training data samples")
             for i, layer in enumerate(param):
                 weighted_param = (n / N) * layer
                 
@@ -88,18 +84,23 @@ class FLServer:
                 
                 aggr_layers[i].append(weighted_param)
         
+        print(aggr_layers)
         weights = []
 
-        for i, weighted_params in range(len(aggr_layers)):
+        for i, weighted_params in aggr_layers.items():
             block = np.zeros_like(weighted_params[0], dtype=np.float32)
             for param in weighted_params:
                 block += param
 
             weights.append(block)
-
+        
+        # swap & evaluate & record server model parameter
         self.model.set_weights(weights)
         acc = self.evaluate_param(weights)
         self.logger.info(f"Server acc {acc}")
+        print(f"Server acc {acc}")
+
+        return self.task()
         
 
     def build_model(self):
@@ -140,8 +141,8 @@ class FLServer:
         for i, v in enumerate(self.y_train):
             train_idxs[v].append(i)
 
-        all_idxs = [i for i in range(len(self.y_train))]
-        client_data_idxs = {i: [] for i in range(self.max_clients)}
+        all_idxs = [id for id in range(len(self.y_train))]
+        client_data_idxs = {id: [] for id in self.server.clients}
 
         num_labels = len(train_idxs)
         if experiment == self.EXP_UNIFORM:
@@ -189,107 +190,132 @@ class FLServer:
            
             return client_data_idxs
 
-    def request_status_code(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_STATUS_CODE)
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
-            return self.conns[id].recv(id)
 
     def request_terminate(self, id):
-        msg = Message(source=-1, flag=Message.TERMINATE)
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
-            
-    def request_train(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_START_TRAIN, data={"start": True})
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
-            return self.conns[id].recv(id)
-    
-    def request_health_code(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_STATUS_CODE)
-        self.conns[id].send(id, msg)
-        recv_msg = self.conns[id].recv(id)
-        health = recv_msg.data
-        return health
-
-    def send_dataset_name(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_DATA_NAME, data={"dataset_name": self.dataset_name})
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
-
-    def send_data_idxs(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_DATA_IDX, data={"data_idxs": self.client_data_idxs[id]})
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
+        msg = Message(source=-1, flag=FLAGS.TERMINATE)
+        self.server.send(id, msg) # uses connection with client and send msg to the client
         
-    def send_model_arch(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_ARCH, data={"arch": self.model.to_json()})
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
+            
+    def request_train(self, id, epochs, batch_size):
+        msg = Message(source=-1, flag=FLAGS.FLAG_START_TRAIN, data={
+            "epochs": epochs, 
+            "batch_size": batch_size,
+            "data_idxs": self.client_data_idxs[id], 
+            "param": list(map(lambda layer: layer.tolist(), self.model.get_weights()))
+        })
+        assert len(msg) != 0, "Message must contain data"
+        self.server.send(id, msg) # uses connection with client and send msg to the client
+        recv_msg = self.server.recv(id)
+        param = recv_msg.data
+        print("request train")
+        return param
 
-    def send_model_param(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_PARAMS, data={"param": list(map(lambda layer: layer.tolist(), self.model.get_weights()))})
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
 
-    def send_compile_config(self, id):
-        msg = Message(source=-1, flag=Message.FLAG_GET_CONFIG, data={
+    def connect(self, id):
+        print(f"accepting {id}")
+        self.server.accept(id)
+        print(f"client {id} registered")
+        #self.conns[id] = self.server.clients[id]
+
+    def initialize(self, dataset_name, experiment, num_samples, max_clients, max_round, epochs, batch_size):
+        # prepare dataset
+        self.dataset_name = dataset_name
+        print("Prep dataset")
+        (_, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
+        self.x_test = self.x_test.reshape(-1, 28, 28, 1)
+        print("..done")
+
+        # build & compile model 
+        print("Build model")
+        self.model = self.compile_model(self.build_model())
+        print("..done")
+
+        
+        # setup logger
+        print("Build logger")
+        current_time = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        self.logger = self.build_logger(current_time)
+        print("..done")
+        
+        
+        # setup connections
+        print("Build conns")
+        #self.client_data_idxs = self.split_dataset(experiment, num_samples) 
+        
+        self.threads = []
+        for i in range(max_clients):
+            thread = threading.Thread(target = self.connect, args=(i,))
+            self.threads.append(thread)
+            thread.start()
+
+        for thread in self.threads:
+            thread.join()
+
+        print("..done")
+        print(len(self.server.clients))
+
+        # variables
+        print("Setting up variables")
+        self.max_round = max_round
+        self.experiment = experiment
+        self.num_samples = num_samples
+        self.epochs = epochs
+        self.batch_size = batch_size
+        print("..done")
+
+        print("Health check")
+        for id in range(max_clients):
+            result_code = self.request_setup(id)
+            print(result_code)
+            healthy = result_code == FLAGS.RESULT_OK
+            if healthy:
+                self.logger.info(f"client {id} healthy")
+
+            else:
+                self.logger.info(f"client {id} not healthy")
+                self.request_terminate(id)
+                self.server.close(id)
+                
+        print("..done")
+        assert len(self.server.clients) != 0, "no available clients"
+        
+        print(f"{len(self.server.clients)}/{max_clients} healthy")
+        return f"{len(self.server.clients)}/{max_clients} healthy"
+
+    def request_setup(self, id):
+        msg = Message(source=-1, flag=FLAGS.FLAG_SETUP, data={
+            "dataset_name": self.dataset_name, 
+            "arch": self.model.to_json(),  
             "optim": tf.keras.optimizers.serialize(self.optimizer), 
             "loss": tf.keras.losses.serialize(self.loss), 
             "metrics": self.metrics
         })
+        assert len(msg) != 0, "Message must contain data"
+        self.server.send(id, msg)
+        recv_msg = self.server.recv(id)
+        print("source", recv_msg.source)
+        print("data", recv_msg.data)
+        result_code = recv_msg.data
+        return result_code
+            
 
-        if len(msg) != 0:
-            self.conns[id].send(id, msg) # uses connection with client and send msg to the client
 
-    def initialize(self, experiment, num_samples, max_clients, max_round):
-        current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        self.logger = self.build_logger(current_time)
-
-        self.client_data_idxs = self.split_dataset(experiment, num_samples)    
-        self.conns = {i: self.server.accept(i) for i in range(max_clients)}
-        self.max_round = max_round
-        self.experiment = experiment
-        self.num_samples = num_samples
-
-        for id in range(max_clients):
-            health = self.request_health_code(id)
-
-            if health == Message.HEALTH_GOOD:
-                self.send_dataset_name(id)
-                self.send_data_idxs(id)
-                self.send_model_arch(id)
-                self.send_compile_config(id)
-                
-
-            elif health == Message.HEALTH_BAD:
-                self.request_terminate(id)
-                self.conns[id].close()
-                del self.conns[id]
-                del self.client_data_idxs[id]
-
-        print(f"{len(self.conns)}/{max_clients} healthy")
-        return f"{len(self.conns)}/{max_clients} healthy"
-
-    def train_once(self):
+    def train_once(self, epochs, batch_size):
         # must run after initialize
         # train and aggregate at once
         params = {}
         accs = {} 
 
-        for healthy_id in self.conns:
-            msg = self.request_train(healthy_id)
-            param = msg.data['param']
+        threads = []
+        for healthy_id in self.server.clients:
+            thread = threading.Thread(target = self.request_train, args=(healthy_id, epochs, batch_size, ))
+            param = self.request_train(id=healthy_id, epochs=epochs, batch_size=batch_size)
             param = list(map(lambda layer: np.array(layer), param))
             params[healthy_id] = param
             accs[healthy_id] = self.evaluate_param(param) # saves acc
         return params, accs
 
     def evaluate_param(self, param):
-        if isinstance(param[0], list):
-            param = list(map(lambda layer:np.array(layer), param))
-
         temp_param = self.model.get_weights()
         self.model.set_weights(param)
 
@@ -300,7 +326,9 @@ class FLServer:
         acc = self.model.evaluate(x_test, y_test)[1]
         self.model.set_weights(temp_param)
         return acc
-        
+    
+    #def run_on_thread(self, func):
+
 
     def compile_model(self, model, optimizer = tf.keras.optimizers.Adam(learning_rate=0.001), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=["accuracy"]):
         self.optimizer = optimizer
@@ -309,9 +337,21 @@ class FLServer:
         model.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
         return model
 
+import argparse
 if __name__ == "__main__":
-    experiment, num_samples, max_clients, max_round = 1, 200, 5, 5
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp", help="experiment 1, 2, 3, 4", type=int, default=1)
+    parser.add_argument("--num", help="num_samples", type=int, default=200)
+    parser.add_argument("--cli", help="max_clients", type=int, default=1)
+    parser.add_argument("--round", help="max_round", type=int, default=5)
+    parser.add_argument("--data", help="dataset_name", type=str, default="mnist")
+    parser.add_argument("--host", help="host", type=str, default="127.0.0.1")
+    parser.add_argument("--port", help="port", type=int, default=20000)
+    parser.add_argument("--epochs", help="epochs", type=int, default=10)
+    parser.add_argument("--batch", help="batch_size", type=int, default=8)
 
-    FL_Server = FLServer(host="127.0.0.1", port=20000, dataset_name="mnist") 
-    print(FL_Server.initialize(experiment, num_samples, max_clients, max_round))
+    args = parser.parse_args()
+
+    FL_Server = FLServer(host=args.host, port=args.port) 
+    print(FL_Server.initialize(args.data, args.exp, args.num, args.cli, args.round, args.epochs, args.batch))
     FL_Server.task()
