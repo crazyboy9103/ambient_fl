@@ -1,5 +1,4 @@
 from platform import java_ver
-from pydoc import cli
 from json_socket import Server, Message, FLAGS
 import numpy as np
 import tensorflow as tf
