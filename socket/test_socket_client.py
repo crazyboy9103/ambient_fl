@@ -1,5 +1,10 @@
 from jetson_fl import FLClient
 from json_socket import FLAGS
+import threading
 
-client = FLClient(0)
-client.task()
+
+clients = [FLClient(0), FLClient(1)]
+for client in clients:
+    thread = threading.Thread(target=client.task)
+    thread.start()
+    

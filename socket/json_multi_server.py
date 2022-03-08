@@ -14,7 +14,10 @@ class FLServer:
     EXP_RANDOM_SAME_SIZE = 1
     EXP_RANDOM_DIFF_SIZE = 2
     EXP_SKEWED = 3
-
+    INPUT_SHAPES = {
+        "cifar": (32, 32, 3), 
+        "mnist": (28, 28, 1)
+    }
     def __init__(self, host, port):
         self.host = host
         self.port = port
@@ -104,8 +107,9 @@ class FLServer:
         
 
     def build_model(self):
+        dataset_type = "mnist" if "mnist" in self.dataset_name else "cifar"
         model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
+            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=self.INPUT_SHAPES[dataset_type]),
             tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
             tf.keras.layers.Dropout(0.25),
@@ -118,27 +122,34 @@ class FLServer:
     
     def prepare_dataset(self, name):
         if name == "mnist":
-            return tf.keras.datasets.mnist.load_data(path="mnist.npz")
+            (_, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+            x_test = x_test.reshape(-1, 28, 28, 1)
+            return (_, y_train), (x_test, y_test) 
             
         if name == "cifar10":
-            return tf.keras.datasets.cifar10.load_data(path="cifar10.npz")
+            return tf.keras.datasets.cifar10.load_data()
 
         if name == "cifar100":
-            return tf.keras.datasets.cifar100.load_data(path="cifar100.npz")
+            return tf.keras.datasets.cifar100.load_data()
         
         if name == "imdb":
-            return tf.keras.datasets.imdb.load_data(path="imdb.npz")
+            return tf.keras.datasets.imdb.load_data()
 
         if name == "fmnist":
-            return tf.keras.datasets.fashion_mnist.load_data(path="fmnist.npz")
+            return tf.keras.datasets.fashion_mnist.load_data()
 
 
     def split_dataset(self, experiment, num_samples):
         # Don't need x_train (which is big) for splitting the dataset
-        size = len(self.y_train)
-        train_idxs = {i:[] for i in range(size)}
+        size = max(self.y_train)     
+        if isinstance(size, list) or isinstance(size, np.ndarray):
+            size = size[0]
+
+        train_idxs = {i:[] for i in range(size+1)}
 
         for i, v in enumerate(self.y_train):
+            if isinstance(v, list) or isinstance(v, np.ndarray):
+                v = v[0]
             train_idxs[v].append(i)
 
         all_idxs = [id for id in range(len(self.y_train))]
@@ -149,7 +160,7 @@ class FLServer:
             for i in range(num_labels):
                 indices = train_idxs[i]
                 for client in client_data_idxs:
-                    random_idxs = np.random.choice(indices, size=num_samples//num_labels, replace=True).tolist()
+                    random_idxs = np.random.choice(indices, size=num_samples//num_labels, replace=True).tolist() #bootstrap
                     client_data_idxs[client].extend(random_idxs)
             
             return client_data_idxs
@@ -222,7 +233,7 @@ class FLServer:
         self.dataset_name = dataset_name
         print("Prep dataset")
         (_, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
-        self.x_test = self.x_test.reshape(-1, 28, 28, 1)
+        
         print("..done")
 
         # build & compile model 
@@ -342,7 +353,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp", help="experiment 1, 2, 3, 4", type=int, default=1)
     parser.add_argument("--num", help="num_samples", type=int, default=200)
-    parser.add_argument("--cli", help="max_clients", type=int, default=1)
+    parser.add_argument("--cli", help="max_clients", type=int, default=2)
     parser.add_argument("--round", help="max_round", type=int, default=5)
     parser.add_argument("--data", help="dataset_name", type=str, default="mnist")
     parser.add_argument("--host", help="host", type=str, default="127.0.0.1")

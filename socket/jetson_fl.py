@@ -13,10 +13,7 @@ class FLClient:
      
     def task(self):
         while True:
-            print("waiting for msg..")
             msg = self.sock_client.recv()
-            print("received msg..")
-            print("flag", msg.flag)
 
             if msg.flag == FLAGS.TERMINATE:
                 return
@@ -36,8 +33,8 @@ class FLClient:
             data = msg.data
             dataset_name = data['dataset_name']
             (self.x_train, self.y_train), (self.x_test, self.y_test) = self.prepare_dataset(dataset_name)
-            self.x_train = self.x_train.reshape(-1, 28, 28, 1)
-            self.x_test  = self.x_test.reshape(-1, 28, 28, 1)
+           
+           
             # 2. builds model from json
 
             model_arch = data['arch']
@@ -74,19 +71,25 @@ class FLClient:
 
     def prepare_dataset(self, name):
         if name == "mnist":
-            return tf.keras.datasets.mnist.load_data(path="mnist.npz")
+            (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+            x_train = x_train.reshape(-1, 28, 28, 1) # infer length (-1), h, w, c
+            x_test  = x_test.reshape(-1, 28, 28, 1)
+            return (x_train, y_train), (x_test, y_test)
             
         if name == "cifar10":
-            return tf.keras.datasets.cifar10.load_data(path="cifar10.npz")
+            return tf.keras.datasets.cifar10.load_data()
 
         if name == "cifar100":
-            return tf.keras.datasets.cifar100.load_data(path="cifar100.npz")
+            return tf.keras.datasets.cifar100.load_data()
         
         if name == "imdb":
-            return tf.keras.datasets.imdb.load_data(path="imdb.npz")
+            return tf.keras.datasets.imdb.load_data()
 
         if name == "fmnist":
-            return tf.keras.datasets.fashion_mnist.load_data(path="fmnist.npz")
+            (x_train, y_train), (x_test, y_test) =tf.keras.datasets.fashion_mnist.load_data()
+            x_train = x_train.reshape(-1, 28, 28, 1) # infer length (-1), h, w, c
+            x_test  = x_test.reshape(-1, 28, 28, 1)
+            return (x_train, y_train), (x_test, y_test)
 
 
     def register(self):
