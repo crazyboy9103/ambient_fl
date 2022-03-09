@@ -1,6 +1,5 @@
-import json, socket, pickle
+import socket, pickle
 from struct import pack, unpack
-import numpy as np
 from enum import Enum
 
 class FLAGS(Enum):
@@ -35,6 +34,7 @@ def get_size(obj, seen=None):
     elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
         size += sum([get_size(i, seen) for i in obj])
     return size
+
 class Message(object):
   def __init__(self, source, flag, data = None):
     self.source = source
@@ -54,8 +54,7 @@ class Message(object):
 
   def __sizeof__(self):
     return get_size(self.data)
-    
-
+  
 
 class Server(object):
   clients = {}

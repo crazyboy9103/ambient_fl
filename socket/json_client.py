@@ -1,4 +1,4 @@
-from json_socket import Client, Message
+from pickle_socket import Client, Message
 import tensorflow as tf
 import json
 import pickle

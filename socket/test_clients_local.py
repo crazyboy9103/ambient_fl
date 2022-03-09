@@ -1,5 +1,4 @@
 from jetson_fl import FLClient
-from json_socket import FLAGS
 import threading
 
 hostname = "localhost"

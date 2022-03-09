@@ -1,14 +1,13 @@
-from jetson_fl import FLClient
 #from json_socket import FLAGS
 #import threading
-import argparse
-
 #hostname = "localhost"
 #clients = [FLClient(0, host = hostname), FLClient(1, host = hostname)]
 #for client in clients:
 #    thread = threading.Thread(target=client.task)
 #    thread.start()
 
+from jetson_fl import FLClient
+import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

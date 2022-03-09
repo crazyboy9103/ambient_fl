@@ -1,4 +1,4 @@
-from json_socket import Client, Message, FLAGS
+from pickle_socket import Client, Message, FLAGS
 import tensorflow as tf
 import numpy as np
 
@@ -27,7 +27,7 @@ class FLClient:
         
     
     def respond_setup(self, msg):
-        print("setup started")
+        print(f"client {self.id} setup started")
         try:
             # 1. gets dataset
             data = msg.data
@@ -49,7 +49,7 @@ class FLClient:
             test_idxs = np.random.choice(len(self.x_train), 100)
             split_x_train, split_y_train = self.x_train[test_idxs], self.y_train[test_idxs]
 
-            print("start training")
+            print(f"client {self.id} started test training")
             self.model.fit(split_x_train, split_y_train, epochs=1, batch_size=8, verbose=2)
             self.send_msg(flag=FLAGS.FLAG_HEALTH_CODE, data=FLAGS.RESULT_OK)
         
@@ -58,7 +58,7 @@ class FLClient:
             self.send_msg(flag=FLAGS.FLAG_HEALTH_CODE, data=FLAGS.RESULT_BAD)
 
     def respond_train(self, msg):
-        print("training started")
+        print(f"client {self.id} training started")
         data = msg.data
         data_idxs = data['data_idxs']
         param = data['param']
@@ -68,7 +68,7 @@ class FLClient:
         self.train_model(data_idxs, param, epochs, batch_size)
         
         self.send_msg(FLAGS.FLAG_START_TRAIN, data=list(map(lambda layer: layer.tolist(), self.model.get_weights())))
-
+        print(f"client {self.id} training completed")
     def prepare_dataset(self, name):
         if name == "mnist":
             (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()

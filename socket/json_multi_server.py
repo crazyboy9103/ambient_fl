@@ -1,18 +1,16 @@
-from platform import java_ver
-from json_socket import Server, Message, FLAGS
+from pickle_socket import Server, Message, FLAGS
 import numpy as np
 import tensorflow as tf
-import time
 import logging
 from datetime import datetime
 import threading
-import sys
+import argparse
 
 class FLServer:
-    EXP_UNIFORM = 0
-    EXP_RANDOM_SAME_SIZE = 1
-    EXP_RANDOM_DIFF_SIZE = 2
-    EXP_SKEWED = 3
+    EXP_UNIFORM = 1
+    EXP_RANDOM_SAME_SIZE = 2
+    EXP_RANDOM_DIFF_SIZE = 3
+    EXP_SKEWED = 4
     INPUT_SHAPES = {
         "cifar": (32, 32, 3), 
         "mnist": (28, 28, 1)
@@ -73,7 +71,18 @@ class FLServer:
             self.logger.info(f"client {id} acc {accs[id]}")
             print(f"client {id} acc {accs[id]}")
         # FedAvg Algorithm
-        N = sum(map(lambda idxs: len(idxs), self.client_data_idxs.values()))       
+        N = sum(map(lambda idxs: len(idxs), self.client_data_idxs.values())) 
+        for id, idxs in self.client_data_idxs.items():
+            temp = {}
+            for idx in idxs:
+                label = self.y_train[idx]
+                if label not in temp:
+                    temp[label] = 0
+                temp[label] += 1
+
+            temp={k:temp[k] for k in sorted(temp)}
+            self.logger.info(f"client {id} data dist {temp}") 
+
         aggr_layers = {}
 
         for id, param in params.items():
@@ -320,9 +329,7 @@ class FLServer:
         params = {}
         accs = {} 
 
-        threads = []
         for healthy_id in self.server.clients:
-            thread = threading.Thread(target = self.request_train, args=(healthy_id, epochs, batch_size, ))
             param = self.request_train(id=healthy_id, epochs=epochs, batch_size=batch_size)
             param = list(map(lambda layer: np.array(layer), param))
             params[healthy_id] = param
@@ -340,8 +347,6 @@ class FLServer:
         acc = self.model.evaluate(x_test, y_test)[1]
         self.model.set_weights(temp_param)
         return acc
-    
-    #def run_on_thread(self, func):
 
 
     def compile_model(self, model, optimizer = tf.keras.optimizers.Adam(learning_rate=0.001), loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=["accuracy"]):
@@ -351,10 +356,9 @@ class FLServer:
         model.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
         return model
 
-import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp", help="experiment 1, 2, 3, 4", type=int, default=1)
+    parser.add_argument("--exp", help="experiment 1, 2, 3, 4", type=int, default=3)
     parser.add_argument("--num", help="num_samples", type=int, default=200)
     parser.add_argument("--cli", help="max_clients", type=int, default=2)
     parser.add_argument("--round", help="max_round", type=int, default=5)
