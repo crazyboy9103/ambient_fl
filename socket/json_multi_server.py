@@ -76,6 +76,8 @@ class FLServer:
             temp = {}
             for idx in idxs:
                 label = self.y_train[idx]
+                if isinstance(label, np.ndarray):
+                    label = label[0] 
                 if label not in temp:
                     temp[label] = 0
                 temp[label] += 1
@@ -97,7 +99,7 @@ class FLServer:
                 
                 aggr_layers[i].append(weighted_param)
         
-        print(aggr_layers)
+        #print(aggr_layers)
         weights = []
 
         for i, weighted_params in aggr_layers.items():
@@ -119,12 +121,12 @@ class FLServer:
     def build_model(self):
         dataset_type = "mnist" if "mnist" in self.dataset_name else "cifar"
         model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=self.INPUT_SHAPES[dataset_type]),
-            tf.keras.layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
+            tf.keras.layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu', input_shape=self.INPUT_SHAPES[dataset_type]),
+            tf.keras.layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
             tf.keras.layers.Dropout(0.25),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(1024, activation='relu'),
             tf.keras.layers.Dropout(0.5),
             tf.keras.layers.Dense(10, activation='softmax')
         ])
@@ -229,7 +231,6 @@ class FLServer:
         self.server.send(id, msg) # uses connection with client and send msg to the client
         recv_msg = self.server.recv(id)
         param = recv_msg.data
-        print("request train")
         return param
 
 
@@ -278,6 +279,7 @@ class FLServer:
 
         # variables
         print("Setting up variables")
+        self.logger.info(f"max round {max_round}, experiment {experiment}, num samples {num_samples}, epochs {epochs}, batch size {batch_size}")
         self.max_round = max_round
         self.experiment = experiment
         self.num_samples = num_samples
@@ -291,10 +293,12 @@ class FLServer:
             print(result_code)
             healthy = result_code == FLAGS.RESULT_OK
             if healthy:
-                self.logger.info(f"client {id} healthy")
+                self.logger.info(f"client {id} address {self.server.clients[id]['addr']} healthy")
+                print(f"client {id} address {self.server.clients[id]['addr']} healthy")
 
             else:
-                self.logger.info(f"client {id} not healthy")
+                self.logger.info(f"client {id} address {self.server.clients[id]['addr']} not healthy")
+                print(f"client {id} address {self.server.clients[id]['addr']} not healthy")
                 self.request_terminate(id)
                 self.server.close(id)
                 
@@ -316,8 +320,6 @@ class FLServer:
         assert len(msg) != 0, "Message must contain data"
         self.server.send(id, msg)
         recv_msg = self.server.recv(id)
-        print("source", recv_msg.source)
-        print("data", recv_msg.data)
         result_code = recv_msg.data
         return result_code
             
