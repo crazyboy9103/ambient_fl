@@ -350,9 +350,6 @@ class FLServer:
             thread = threading.Thread(target=self.request_train, args =(healthy_id, epochs, batch_size, clients_param_dict,))
             threads.append(thread)
             thread.start()
-            #param = self.request_train(id=healthy_id, epochs=epochs, batch_size=batch_size)
-            #param = list(map(lambda layer: np.array(layer), param))
-            #params[healthy_id] = param
         
         for thread in threads:
             thread.join()
@@ -364,7 +361,6 @@ class FLServer:
             thread = threading.Thread(target=self.evaluate_param, args = (healthy_id, param, clients_acc_dict, ))
             threads.append(thread)
             thread.start()
-            #accs[healthy_id] = self.evaluate_param(param) # saves acc
         
         for thread in threads:
             thread.join()
@@ -380,7 +376,7 @@ class FLServer:
         x_test, y_test = self.x_test[idxs], self.y_test[idxs]
 
         acc = self.model.evaluate(x_test, y_test)[1]
-        clients_acc_dict
+        clients_acc_dict[id] = acc
         self.model.set_weights(temp_param)
         return acc
 
