@@ -91,6 +91,7 @@ class FLServer:
             n = len(self.client_data_idxs[id])
             self.logger.info(f"client {id}, {n} training data samples")
             print(f"client {id}, {n} training data samples")
+            print(type(param))
             for i, layer in enumerate(param):
                 weighted_param = (n / N) * layer
                 
@@ -111,7 +112,7 @@ class FLServer:
         
         # swap & evaluate & record server model parameter
         self.model.set_weights(weights)
-        acc = self.evaluate_param(weights)
+        acc = self.evaluate_param(id=-1, param=weights, clients_acc_dict={})
         self.logger.info(f"Server acc {acc}")
         print(f"Server acc {acc}")
 
@@ -121,12 +122,12 @@ class FLServer:
     def build_model(self):
         dataset_type = "mnist" if "mnist" in self.dataset_name else "cifar"
         model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu', input_shape=self.INPUT_SHAPES[dataset_type]),
-            tf.keras.layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
+            tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=self.INPUT_SHAPES[dataset_type]),
+            tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
             tf.keras.layers.Dropout(0.25),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(1024, activation='relu'),
+            tf.keras.layers.Dense(64, activation='relu'),
             tf.keras.layers.Dropout(0.5),
             tf.keras.layers.Dense(10, activation='softmax')
         ])
@@ -219,7 +220,7 @@ class FLServer:
         self.server.send(id, msg) # uses connection with client and send msg to the client
         
             
-    def request_train(self, id, epochs, batch_size):
+    def request_train(self, id, epochs, batch_size, clients_param_dict):
         msg = Message(source=-1, flag=FLAGS.FLAG_START_TRAIN, data={
             "epochs": epochs, 
             "batch_size": batch_size,
@@ -231,6 +232,8 @@ class FLServer:
         self.server.send(id, msg) # uses connection with client and send msg to the client
         recv_msg = self.server.recv(id)
         param = recv_msg.data
+        param = list(map(lambda layer: np.array(layer), param))
+        clients_param_dict[id] = param
         return param
 
 
@@ -288,9 +291,20 @@ class FLServer:
         print("..done")
 
         print("Health check")
+        
+        clients_resultcode_dict = {}
+        threads = []
+
         for id in range(max_clients):
-            result_code = self.request_setup(id)
-            print(result_code)
+            #result_code = self.request_setup(id)
+            thread = threading.Thread(target=self.request_setup, args=(id, clients_resultcode_dict,))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        for id, result_code in clients_resultcode_dict.items():
             healthy = result_code == FLAGS.RESULT_OK
             if healthy:
                 self.logger.info(f"client {id} address {self.server.clients[id]['addr']} healthy")
@@ -308,7 +322,7 @@ class FLServer:
         print(f"{len(self.server.clients)}/{max_clients} healthy")
         return f"{len(self.server.clients)}/{max_clients} healthy"
 
-    def request_setup(self, id):
+    def request_setup(self, id, clients_resultcode_dict):
         msg = Message(source=-1, flag=FLAGS.FLAG_SETUP, data={
             "dataset_name": self.dataset_name, 
             "arch": self.model.to_json(),  
@@ -321,6 +335,7 @@ class FLServer:
         self.server.send(id, msg)
         recv_msg = self.server.recv(id)
         result_code = recv_msg.data
+        clients_resultcode_dict[id] = result_code
         return result_code
             
 
@@ -328,17 +343,36 @@ class FLServer:
     def train_once(self, epochs, batch_size):
         # must run after initialize
         # train and aggregate at once
-        params = {}
-        accs = {} 
+        clients_param_dict = {}
+        clients_acc_dict = {} 
+        
+        threads = []
+        for healthy_id in self.server.clients:
+            thread = threading.Thread(target=self.request_train, args =(healthy_id, epochs, batch_size, clients_param_dict,))
+            threads.append(thread)
+            thread.start()
+            #param = self.request_train(id=healthy_id, epochs=epochs, batch_size=batch_size)
+            #param = list(map(lambda layer: np.array(layer), param))
+            #params[healthy_id] = param
+        
+        for thread in threads:
+            thread.join()
+
+        threads = []
 
         for healthy_id in self.server.clients:
-            param = self.request_train(id=healthy_id, epochs=epochs, batch_size=batch_size)
-            param = list(map(lambda layer: np.array(layer), param))
-            params[healthy_id] = param
-            accs[healthy_id] = self.evaluate_param(param) # saves acc
-        return params, accs
+            param = clients_param_dict[healthy_id]
+            thread = threading.Thread(target=self.evaluate_param, args = (healthy_id, param, clients_acc_dict, ))
+            threads.append(thread)
+            thread.start()
+            #accs[healthy_id] = self.evaluate_param(param) # saves acc
+        
+        for thread in threads:
+            thread.join()
 
-    def evaluate_param(self, param):
+        return clients_param_dict, clients_acc_dict
+
+    def evaluate_param(self, id, param, clients_acc_dict):
         temp_param = self.model.get_weights()
         self.model.set_weights(param)
 
@@ -347,6 +381,7 @@ class FLServer:
         x_test, y_test = self.x_test[idxs], self.y_test[idxs]
 
         acc = self.model.evaluate(x_test, y_test)[1]
+        clients_acc_dict
         self.model.set_weights(temp_param)
         return acc
 
