@@ -228,7 +228,7 @@ class FLServer:
             "param": list(map(lambda layer: layer.tolist(), self.model.get_weights()))
         })
         assert len(msg) != 0, "Message must contain data"
-        print("server model parameter size %.2f MB" % (msg.__sizeof__()/1000000))
+        print("server model parameter size %.2f MB" % (msg.__sizeof__()))
         self.server.send(id, msg) # uses connection with client and send msg to the client
         recv_msg = self.server.recv(id)
         param = recv_msg.data
@@ -241,7 +241,6 @@ class FLServer:
         print(f"accepting {id}")
         self.server.accept(id)
         print(f"client {id} registered")
-        #self.conns[id] = self.server.clients[id]
 
     def initialize(self, dataset_name, experiment, num_samples, max_clients, max_round, epochs, batch_size):
         # prepare dataset
@@ -268,13 +267,13 @@ class FLServer:
         print("Build conns")
         #self.client_data_idxs = self.split_dataset(experiment, num_samples) 
         
-        self.threads = []
+        threads = []
         for i in range(max_clients):
             thread = threading.Thread(target = self.connect, args=(i,))
-            self.threads.append(thread)
+            threads.append(thread)
             thread.start()
 
-        for thread in self.threads:
+        for thread in threads:
             thread.join()
 
         print("..done")
@@ -330,7 +329,7 @@ class FLServer:
             "loss": tf.keras.losses.serialize(self.loss), 
             "metrics": self.metrics
         })
-        print("server settings size %.2f MB" % (msg.__sizeof__()/1000000))
+        print("server settings size %.2f MB" % (msg.__sizeof__()))
         assert len(msg) != 0, "Message must contain data"
         self.server.send(id, msg)
         recv_msg = self.server.recv(id)

@@ -53,7 +53,7 @@ class Message(object):
     return int(bool(self.data))
 
   def __sizeof__(self):
-    return get_size(self.data)
+    return get_size(self.data) / 1000000 # MB
   
 
 class Server(object):
