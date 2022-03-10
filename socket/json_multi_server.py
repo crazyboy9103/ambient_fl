@@ -70,6 +70,7 @@ class FLServer:
         for id in range(len(accs)):
             self.logger.info(f"client {id} acc {accs[id]}")
             print(f"client {id} acc {accs[id]}")
+            
         # FedAvg Algorithm
         N = sum(map(lambda idxs: len(idxs), self.client_data_idxs.values())) 
         for id, idxs in self.client_data_idxs.items():
