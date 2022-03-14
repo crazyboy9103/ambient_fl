@@ -42,15 +42,20 @@ class Jetson:
 
                         
     def start_fed(self, host, port):
+        threads = []
         for i, (port, con) in enumerate(zip(self.jetson_ports, self.connections)):
             command = f'docker exec client python3 /ambient_fl/socket/test_single_client.py --id {i} --host 147.47.200.209 --port 20000'
             print(f'----------------{port}----------------')
             try:
                 t=threading.Thread(target=con.run,args=(command,))
+                threads.append(t)
                 t.start()
                 time.sleep(1)
             except:
                 print('ERROR')
+        
+        for thread in threads:
+            thread.join()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
