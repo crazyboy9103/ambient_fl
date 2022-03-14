@@ -147,7 +147,7 @@ def _recv(socket):
       return None
   msglen = unpack('>I', raw_msglen)[0]
   msg =  recvall(socket, msglen)
-  return pickle.loads(msg)
+  return pickle.loads(msg, encoding="utf-8")
   
 def recvall(socket, n):
     # Helper function to recv n bytes or return None if EOF is hit

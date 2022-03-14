@@ -50,7 +50,7 @@ class Jetson:
                 t=threading.Thread(target=con.run,args=(command,))
                 threads.append(t)
                 t.start()
-                time.sleep(1)
+                time.sleep(2)
             except:
                 print('ERROR')
         
