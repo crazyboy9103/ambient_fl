@@ -94,7 +94,6 @@ class FLServer:
             n = len(self.client_data_idxs[id])
             self.logger.info(f"client {id}, {n} training data samples")
             print(f"client {id}, {n} training data samples")
-            print(type(param))
             for i, layer in enumerate(param):
                 weighted_param = (n / N) * layer
                 
@@ -339,8 +338,8 @@ class FLServer:
         recv_msg = self.server.recv(id)
         result_code = recv_msg.data
         clients_resultcode_dict[id] = result_code
-        print(f"request train client {id}")
-        print(clients_resultcode_dict)
+        #print(f"request train client {id}")
+        #print(clients_resultcode_dict)
         return result_code
             
 
