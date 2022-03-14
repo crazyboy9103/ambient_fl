@@ -39,7 +39,7 @@ class FLClient:
 
             model_arch = data['arch']
             #model = tf.keras.models.model_from_json(model, custom_objects={"null":None}) 
-            self.model = tf.keras.models.model_from_json(model_arch)
+            self.model = tf.keras.models.model_from_json(model_arch, custom_objects={"null":None})
 
             # 3. compile model 
             optimizer, loss, metrics = tf.keras.optimizers.deserialize(data['optim']), tf.keras.losses.deserialize(data['loss']), data['metrics']
