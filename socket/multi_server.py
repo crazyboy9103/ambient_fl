@@ -53,8 +53,9 @@ class FLServer:
             print(f"Round {self.curr_round}/{self.max_round}")
         
         else:
-            for id in self.server.clients:
-                self.request_terminate(id)
+            for client in self.server.clients:
+                client_id = client["id"]
+                self.request_terminate(client_id)
             self.logger.info("Finished FL task")
             print("Finished FL task")
             return 
@@ -168,7 +169,7 @@ class FLServer:
             train_idxs[v].append(i)
 
         all_idxs = [id for id in range(len(self.y_train))]
-        client_data_idxs = {id: [] for id in self.server.clients}
+        client_data_idxs = {client["id"]: [] for client in self.server.clients}
 
         num_labels = len(train_idxs)
         if experiment == self.EXP_UNIFORM:
@@ -307,13 +308,14 @@ class FLServer:
 
         for id, result_code in clients_resultcode_dict.items():
             healthy = result_code == FLAGS.RESULT_OK
+            idx = self.server.client_id_to_idx(id)
             if healthy:
-                self.logger.info(f"client {id} address {self.server.clients[id]['addr']} healthy")
-                print(f"client {id} address {self.server.clients[id]['addr']} healthy")
+                self.logger.info(f"client {id} address {self.server.clients[idx]['addr']} healthy")
+                print(f"client {id} address {self.server.clients[idx]['addr']} healthy")
 
             else:
-                self.logger.info(f"client {id} address {self.server.clients[id]['addr']} not healthy")
-                print(f"client {id} address {self.server.clients[id]['addr']} not healthy")
+                self.logger.info(f"client {id} address {self.server.clients[idx]['addr']} not healthy")
+                print(f"client {id} address {self.server.clients[idx]['addr']} not healthy")
                 self.request_terminate(id)
                 self.server.close(id)
                 
