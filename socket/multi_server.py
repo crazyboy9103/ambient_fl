@@ -348,8 +348,9 @@ class FLServer:
         clients_acc_dict = {} 
         
         threads = []
-        for healthy_id in self.server.clients:
-            thread = threading.Thread(target=self.request_train, args =(healthy_id, epochs, batch_size, clients_param_dict,))
+        for client in self.server.clients:
+            client_id = client["id"]
+            thread = threading.Thread(target=self.request_train, args =(client_id, epochs, batch_size, clients_param_dict,))
             threads.append(thread)
             thread.start()
         
@@ -358,9 +359,10 @@ class FLServer:
 
         threads = []
 
-        for healthy_id in self.server.clients:
-            param = clients_param_dict[healthy_id]
-            thread = threading.Thread(target=self.evaluate_param, args = (healthy_id, param, clients_acc_dict, ))
+        for client in self.server.clients:
+            client_id = client["id"]
+            param = clients_param_dict[client_id]
+            thread = threading.Thread(target=self.evaluate_param, args = (client_id, param, clients_acc_dict, ))
             threads.append(thread)
             thread.start()
         
