@@ -54,7 +54,7 @@ class Jetson:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="147.47.200.134", type=str)
+    parser.add_argument("--host", default="147.47.200.209", type=str)
     parser.add_argument("--port", default=20000, type=int)
     parser.add_argument("--min", default=20101, type=int)
     parser.add_argument("--max", default=20136, type=int)
