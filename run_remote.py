@@ -85,9 +85,9 @@ if __name__ == "__main__":
     print("...completed")
 
     print("\n")
-    print("Git pull")
-    jetson.send_command("docker exec client cd ambient_fl && git pull")
-    print("...completed")
+    #print("Git pull")
+    #jetson.send_command("docker exec client cd ambient_fl && git pull")
+    #print("...completed")
     
     print("\n")
     print("Starting federated learning")
