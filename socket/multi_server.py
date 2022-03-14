@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 import threading
 import argparse
+#import socket 
 
 class FLServer:
     EXP_UNIFORM = 1
@@ -402,7 +403,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch", help="batch_size", type=int, default=8)
 
     args = parser.parse_args()
-
+    #args.host = socket.gethostname()
+    #print(args.host)
     FL_Server = FLServer(host=args.host, port=args.port) 
     print(FL_Server.initialize(args.data, args.exp, args.num, args.cli, args.round, args.epochs, args.batch))
     FL_Server.task()
