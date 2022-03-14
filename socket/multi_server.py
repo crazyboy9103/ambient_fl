@@ -339,6 +339,8 @@ class FLServer:
         recv_msg = self.server.recv(id)
         result_code = recv_msg.data
         clients_resultcode_dict[id] = result_code
+        print(f"request train client {id}")
+        print(clients_resultcode_dict)
         return result_code
             
 

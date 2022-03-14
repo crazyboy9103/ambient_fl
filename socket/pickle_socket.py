@@ -92,7 +92,7 @@ class Server(object):
     _send(self.clients[idx]['client'], data)
   
   def recv(self, id):
-    if id not in self.clients:
+    if id not in [client["id"] for client in self.clients]:
       raise Exception('Cannot receive data, no client is connected')
     
     idx = self.client_id_to_idx(id)
