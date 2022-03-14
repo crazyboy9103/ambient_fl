@@ -59,9 +59,9 @@ class Message(object):
 class Server(object):
   clients = {}
   def __init__(self, host, port, max_con):
-    self.socket = socket.socket()
+    self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.socket.bind((host, port))
-    self.socket.listen(max_con)
+    self.socket.listen()
 
   def __del__(self):
     for id in range(len(self.clients)):
