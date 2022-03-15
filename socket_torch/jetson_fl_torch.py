@@ -1,6 +1,8 @@
 from pickle_socket import Client, Message, FLAGS
-import tensorflow as tf
+import torch, torchvision
+import torchvision.models as models
 import numpy as np
+
 
 class FLClient:
     def __init__(self, id, host = 'localhost', port = 20000):
